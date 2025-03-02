@@ -1,8 +1,9 @@
 import re
 from typing import List
 
-from constants import BULLETS
-from regex_patterns import PARAGRAPH_PATTERN, PARAGRAPH_PATTERN_SIMPLE, ENUM_PATTERN_NO_DATE
+from ..constants import BULLETS
+from ..patterns import (PARAGRAPH_PATTERN, PARAGRAPH_PATTERN_SIMPLE,
+                        ENUM_PATTERN_NO_DATE)
 
 
 def split_regex_paragraphs(text: str,

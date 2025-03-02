@@ -1,11 +1,11 @@
 import pandas as pd
 from tqdm.auto import tqdm
 
-from constants import (TEXT_COL, PARA_COL, PARAS_COL, PARA_N_COL, PARA_ID_COL,
-                       BULLETS)
+from ..constants import (TEXT_COL, PARA_COL, PARAS_COL, PARA_N_COL, PARA_ID_COL,
+                                     BULLETS)
 from .para_splitting import split_clean_paragraphs
-from regex_patterns import PARAGRAPH_PATTERN_SIMPLE, ENUM_PATTERN_NO_DATE
-from utils import column_list, increment_ids, add_id
+from ..patterns import PARAGRAPH_PATTERN_SIMPLE, ENUM_PATTERN_NO_DATE
+from ..utils import column_list, increment_ids, add_id, clean_placeholders
 
 # Enable progress bars for dataframe .map and .apply methods
 tqdm.pandas()
@@ -17,6 +17,7 @@ def split_paragraphs(
         function: callable = None,
         drop_text: bool = True,
         mathematical_ids: bool = False,
+        drop_placeholders: list = None,
         drop_empty: bool = True
         ) -> pd.DataFrame:
     """
@@ -33,6 +34,7 @@ def split_paragraphs(
     df[[PARAS_COL, PARA_N_COL]] = find_paragraphs(dataframe=df,
                                                   column=column,
                                                   function=function,
+                                                  drop_placeholders=drop_placeholders,
                                                   mathematical_ids=mathematical_ids,
                                                   drop_empty=drop_empty
                                                   )
@@ -50,6 +52,7 @@ def find_paragraphs(
         column: str = TEXT_COL,
         function: callable = None,
         mathematical_ids: bool = False,
+        drop_placeholders: list = None,
         drop_empty: bool = True
         ) -> pd.DataFrame:
     """
@@ -63,6 +66,7 @@ def find_paragraphs(
     paragraphs = dataframe[column].progress_map(
        lambda text: make_paragraphs_from_text(text=text,
                                               function=function,
+                                              drop_placeholders=drop_placeholders,
                                               drop_empty=drop_empty,
                                               as_tuples=True
                                               )
@@ -81,6 +85,7 @@ def find_paragraphs(
 def make_paragraphs_from_text(
         text: str,
         function: callable = None,
+        drop_placeholders: list = None,
         drop_empty: bool = True,
         as_tuples: bool = False,
         ) -> list:
@@ -101,6 +106,10 @@ def make_paragraphs_from_text(
             enum_pattern=ENUM_PATTERN_NO_DATE,
             bullets=BULLETS
         )
+
+    if drop_placeholders is not None:
+        paragraphs = clean_placeholders(paragraphs,
+                                        placeholders=drop_placeholders)
 
     if drop_empty:
         paragraphs = [p for p in paragraphs if len(p) > 0]

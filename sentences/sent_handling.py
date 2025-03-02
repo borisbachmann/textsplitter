@@ -3,10 +3,10 @@ from typing import Dict, Union, Tuple, Callable
 import pandas as pd
 from tqdm.auto import tqdm
 
-from constants import TEXT_COL, SENT_COL, SENTS_COL, SENT_N_COL, SENT_ID_COL
+from ..constants import TEXT_COL, SENT_COL, SENTS_COL, SENT_N_COL, SENT_ID_COL
 from ..paragraphs.para_handling import make_paragraphs_from_text
 from .sentencizer import Sentencizer
-from utils import column_list, increment_ids, add_id
+from ..utils import column_list, increment_ids, add_id
 
 # Enable progress bars for dataframe .map and .apply methods
 tqdm.pandas()
@@ -93,6 +93,7 @@ def make_sentences_from_text(
     sentencizer_specs = sentence_specs.get("sentencizer", ("pysbd", "de"))
     show_progress = sentence_specs.get("show_progress", False)
     paragraph_function = sentence_specs.get("paragraph_function", None)
+    drop_placeholders = sentence_specs.get("drop_placeholders", [])
 
     if isinstance(sentencizer_specs, tuple):
         sentencizer = Sentencizer(*sentencizer_specs)
@@ -107,7 +108,8 @@ def make_sentences_from_text(
     paragraphs = make_paragraphs_from_text(text = text,
                                            drop_empty=drop_empty,
                                            as_tuples=False,
-                                           function=paragraph_function)
+                                           function=paragraph_function,
+                                           drop_placeholders=drop_placeholders,)
     # process paragraphs individually into sentences
     sentences = sentencizer.split(paragraphs, show_progress=show_progress)
     # flatten sentence lists for paragraphs into one list for whole text

@@ -10,11 +10,12 @@ from tqdm.auto import tqdm
 from .graph_chunker import graph_chunking
 from .linear_chunker import linear_chunking
 from .chunk_utils import TokenCounter
-from constants import (TEXT_COL, CHUNK_COL, CHUNKS_COL, CHUNK_N_COL,
-                       CHUNK_ID_COL, DEFAULT_SCOPE, DEFAULT_STRATEGY, DEFAULT_RESOLUTION)
+from ..constants import (TEXT_COL, CHUNK_COL, CHUNKS_COL, CHUNK_N_COL,
+                         CHUNK_ID_COL, DEFAULT_SCOPE, DEFAULT_STRATEGY,
+                         DEFAULT_RESOLUTION)
 from ..embeddings import create_embeddings
 from ..sentences.sent_handling import make_sentences_from_text
-from utils import column_list, increment_ids, add_id
+from ..utils import column_list, increment_ids, add_id
 
 # Enable progress bars for dataframe .map and .apply methods
 tqdm.pandas()
@@ -107,7 +108,10 @@ def chunk_multiple_texts(
 
     """
     print("finding sentences...")
-    sentences = [sent for text in texts for sent in make_sentences_from_text(text)]
+    if sent_specs is not None:
+        sent_specs["drop_placeholders"] = []
+    sentences = [make_sentences_from_text(text, sentence_specs=sent_specs)
+                 for text in tqdm(texts)]
 
     print("creating embeddings...")
     specs = deepcopy(specs)
@@ -143,6 +147,8 @@ def chunk_text(
     Segment a text into chunks based on semantic similarity and max token length.
     Returns a list of chunks and optionally a list tuples with id and chunk.
     """
+    if sent_specs is not None:
+        sent_specs["drop_placeholders"] = []
     sentences = make_sentences_from_text(text, sentence_specs=sent_specs)
 
     specs = deepcopy(specs)
@@ -171,6 +177,8 @@ def extract_chunks(
     length. Returns a list of chunks and optionally a list tuples with id and
     chunk.
     """
+    if sent_specs is not None:
+        sent_specs["drop_placeholders"] = []
     sentences = make_sentences_from_text(text, sentence_specs=sent_specs)
 
     if embeddings is None:
