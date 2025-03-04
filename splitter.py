@@ -20,17 +20,19 @@ class TextSplitter:
             self,
             drop_empty: Optional[bool] = True,
             as_tuples: Optional[bool] = False,
+            include_span: Optional[bool] = False,
             paragraph_function: Optional[callable] = None,
             drop_placeholders: Optional[list] = None,
             sentence_specs: Optional[dict] = None,
             chunking_strategy: Optional[str] = DEFAULT_STRATEGY,
             chunking_specs: Optional[dict] = None,
             mathematical_ids: Optional[bool] = False,
-            drop_text: Optional[bool] = True
+            drop_text: Optional[bool] = True,
             ):
         self.sentence_specs = sentence_specs
         self.drop_empty = drop_empty
         self.as_tuples = as_tuples
+        self.include_span = include_span
         self.paragraph_function = paragraph_function
         self.drop_placeholders = drop_placeholders
         self.chunking_strategy = chunking_strategy
@@ -49,32 +51,36 @@ class TextSplitter:
             column: Optional[str] = None,
             drop_empty: Optional[bool] = None,
             as_tuples: Optional[bool] = None,
+            include_span: Optional[bool] = False,
             paragraph_function: Optional[callable] = None,
             drop_placeholders: list = None,
             sentence_specs: Optional[dict] = None,
             chunking_strategy: Optional[str] = None,
             chunking_specs: Optional[dict] = None,
             mathematical_ids: Optional[bool] = None,
-            drop_text: Optional[bool] = None
+            drop_text: Optional[bool] = None,
             ) -> Union[str, list, pd.Series, pd.DataFrame]:
 
         if isinstance(data, str):
-            specs = self._compile_specs(drop_empty, as_tuples, paragraph_function,
+            specs = self._compile_specs(drop_empty, as_tuples, include_span,
+                                        paragraph_function,
                                         drop_placeholders, sentence_specs,
                                         chunking_strategy, chunking_specs)
             return self._split(data=data, mode=mode, **specs)
         elif isinstance(data, list):
-            specs = self._compile_specs(drop_empty, as_tuples, paragraph_function,
+            specs = self._compile_specs(drop_empty, as_tuples, include_span,
+                                        paragraph_function,
                                         drop_placeholders, sentence_specs,
                                         chunking_strategy, chunking_specs)
             return self._split_multiple(data=data, mode=mode, **specs)
         elif isinstance(data, pd.Series):
-            specs = self._compile_specs(drop_empty, as_tuples, paragraph_function,
+            specs = self._compile_specs(drop_empty, as_tuples, include_span,
+                                        paragraph_function,
                                         drop_placeholders, sentence_specs,
                                         chunking_strategy, chunking_specs)
             return self._split_series(data=data, mode=mode, **specs)
         elif isinstance(data, pd.DataFrame):
-            specs = self._compile_df_specs(drop_empty, as_tuples,
+            specs = self._compile_df_specs(drop_empty, as_tuples, include_span,
                                            paragraph_function, drop_placeholders,
                                            sentence_specs, chunking_strategy,
                                            chunking_specs, column,
@@ -85,11 +91,24 @@ class TextSplitter:
                              f"type {type(data)}, but must be str, list, "
                              f"pd.Series or pd.DataFrame.")
 
+    def sentences(self, *args, **kwargs
+                  ) -> Union[str, list, pd.Series, pd.DataFrame]:
+        return self(mode="sentences", *args, **kwargs)
+
+    def paragraphs(self, *args, **kwargs
+                   ) -> Union[str, list, pd.Series, pd.DataFrame]:
+          return self(mode="paragraphs", *args, **kwargs)
+
+    def chunks(self, *args, **kwargs
+               ) -> Union[str, list, pd.Series, pd.DataFrame]:
+        return self(mode="chunks", *args, **kwargs)
+
     def _split(self,
                data: str,
                mode: str,
                drop_empty: bool,
                as_tuples: bool,
+               include_span: bool,
                paragraph_function: callable,
                drop_placeholders: list,
                sentence_specs: dict,
@@ -101,17 +120,20 @@ class TextSplitter:
                                             sentence_specs=sentence_specs,
                                             drop_empty=drop_empty,
                                             as_tuples=as_tuples,
+                                            include_span=include_span
                                             )
         elif mode == "paragraphs":
             return make_paragraphs_from_text(text=data,
                                              drop_empty=drop_empty,
                                              as_tuples=as_tuples,
+                                             include_span=include_span,
                                              function=paragraph_function,
                                              drop_placeholders=drop_placeholders
                                              )
         elif mode == "chunks":
             return chunk_text(text=data,
                               as_tuples=as_tuples,
+                              include_span=include_span,
                               strategy=chunking_strategy,
                               specs=chunking_specs,
                               sent_specs=sentence_specs
@@ -122,6 +144,7 @@ class TextSplitter:
                         mode: str,
                         drop_empty: bool,
                         as_tuples: bool,
+                        include_span: bool,
                         paragraph_function: callable,
                         drop_placeholders: list,
                         sentence_specs: dict,
@@ -133,12 +156,14 @@ class TextSplitter:
                                              sentence_specs=sentence_specs,
                                              drop_empty=drop_empty,
                                              as_tuples=as_tuples,
+                                             include_span=include_span
                                              )
                     for text in data]
         elif mode == "paragraphs":
             return [make_paragraphs_from_text(text=text,
                                               drop_empty=drop_empty,
                                               as_tuples=as_tuples,
+                                              include_span=include_span,
                                               function=paragraph_function,
                                               drop_placeholders=drop_placeholders
                                               )
@@ -146,6 +171,7 @@ class TextSplitter:
         elif mode == "chunks":
             return chunk_multiple_texts(texts=data,
                                         as_tuples=as_tuples,
+                                        include_span=include_span,
                                         strategy=chunking_strategy,
                                         specs=chunking_specs,
                                         sent_specs=sentence_specs
@@ -156,6 +182,7 @@ class TextSplitter:
                       mode: str,
                       drop_empty: bool,
                       as_tuples: bool,
+                      include_span: bool,
                       paragraph_function: callable,
                       drop_placeholders: list,
                       sentence_specs: dict,
@@ -168,6 +195,7 @@ class TextSplitter:
                                          mode=mode,
                                          drop_empty=drop_empty,
                                          as_tuples=as_tuples,
+                                         include_span=include_span,
                                          paragraph_function=paragraph_function,
                                          drop_placeholders=drop_placeholders,
                                          sentence_specs=sentence_specs,
@@ -180,6 +208,7 @@ class TextSplitter:
                                      strategy=chunking_strategy,
                                      specs=chunking_specs,
                                      as_tuples=as_tuples,
+                                     include_span=include_span,
                                      drop_empty=drop_empty,
                                      mathematical_ids=False,
                                      sent_specs=sentence_specs
@@ -189,6 +218,7 @@ class TextSplitter:
                   data: pd.DataFrame,
                   column: str,
                   mode: str,
+                  include_span: bool,
                   drop_empty: bool,
                   paragraph_function: callable,
                   drop_placeholders: list,
@@ -203,6 +233,7 @@ class TextSplitter:
             df= split_sentences(input_df=data,
                                 sentence_specs=sentence_specs,
                                 column=column,
+                                include_span=include_span,
                                 drop_text=drop_text,
                                 mathematical_ids=mathematical_ids,
                                 drop_empty=drop_empty
@@ -210,6 +241,7 @@ class TextSplitter:
         elif mode == "paragraphs":
             df = split_paragraphs(input_df=data,
                                   column=column,
+                                  include_span=include_span,
                                   drop_text=drop_text,
                                   mathematical_ids=mathematical_ids,
                                   drop_empty=drop_empty,
@@ -219,6 +251,7 @@ class TextSplitter:
         elif mode == "chunks":
             df = split_chunks(input_df=data,
                               column=column,
+                              include_span=include_span,
                               drop_text=drop_text,
                               mathematical_ids=mathematical_ids,
                               drop_empty=drop_empty,
@@ -245,6 +278,7 @@ class TextSplitter:
     def _compile_specs(self,
                        drop_empty: bool,
                        as_tuples: bool,
+                       include_span: bool,
                        paragraph_function: callable,
                        drop_placeholders: list,
                        sentence_specs: dict,
@@ -257,6 +291,8 @@ class TextSplitter:
                            else self.drop_empty),
             "as_tuples": (as_tuples if as_tuples is not None
                           else self.as_tuples),
+            "include_span": (include_span if include_span is not None
+                             else self.include_span),
             "paragraph_function": (paragraph_function
                                   if paragraph_function is not None
                                   else self.paragraph_function),
@@ -275,6 +311,7 @@ class TextSplitter:
     def _compile_df_specs(self,
                           drop_empty: bool,
                           as_tuples: bool,
+                          include_span: bool,
                           paragraph_function: callable,
                           drop_placeholders: list,
                           sentence_specs: dict,
@@ -286,6 +323,7 @@ class TextSplitter:
                           ) -> dict:
         base_specs = {
             k: v for k, v in self._compile_specs(drop_empty, as_tuples,
+                                                 include_span,
                                                  paragraph_function,
                                                  drop_placeholders,
                                                  sentence_specs,

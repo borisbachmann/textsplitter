@@ -13,8 +13,9 @@ DEFAULT_RESOLUTION = 1.0                # resolution for louvain community
 # Default columns are optimized for use with the corpus_builder module
 
 # basic suffixes
-ID_SUFFIX = "ID"  # suffix for ID columns
-N_SUFFIX = "n"    # suffix for count columns
+ID_SUFFIX = "ID"      # suffix for ID columns
+N_SUFFIX = "n"        # suffix for count columns
+SPAN_SUFFIX = "span"  # suffix for span columns
 
 
 # textual data units and corresponding column names
@@ -59,6 +60,16 @@ def n_pattern(base_col):
 SENT_N_COL = n_pattern(SENT_COL)
 PARA_N_COL = n_pattern(PARA_COL)
 CHUNK_N_COL = n_pattern(CHUNK_COL)
+
+
+# span columns
+def span_pattern(base_col):
+    """Make column name for column with span based on base column name."""
+    return f"{base_col}_{SPAN_SUFFIX}"
+
+SENT_SPAN_COL = span_pattern(SENT_COL)
+PARA_SPAN_COL = span_pattern(PARA_COL)
+CHUNK_SPAN_COL = span_pattern(CHUNK_COL)
 
 
 # Constants for token attribute extraction

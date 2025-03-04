@@ -15,7 +15,7 @@ from ..constants import (TEXT_COL, CHUNK_COL, CHUNKS_COL, CHUNK_N_COL,
                          DEFAULT_RESOLUTION)
 from ..embeddings import create_embeddings
 from ..sentences.sent_handling import make_sentences_from_text
-from ..utils import column_list, increment_ids, add_id
+from ..utils import column_list, increment_ids, add_id, find_substring_indices
 
 # Enable progress bars for dataframe .map and .apply methods
 tqdm.pandas()
@@ -141,6 +141,7 @@ def chunk_text(
         specs: Optional[dict] = None,
         drop_empty: bool = True,
         as_tuples: bool = False,
+        include_span: bool = False,
         sent_specs: Optional[dict] = None)\
         -> list:
     """
@@ -160,6 +161,7 @@ def chunk_text(
                           specs=specs,
                           drop_empty=drop_empty,
                           as_tuples=as_tuples,
+                          include_span=include_span,
                           sent_specs=sent_specs
                           )
 
@@ -170,6 +172,7 @@ def extract_chunks(
         specs: Optional[dict] = None,
         drop_empty: bool = True,
         as_tuples: bool = False,
+        include_span: bool = False,
         sent_specs: Optional[dict] = None)\
         -> list:
     """
@@ -190,10 +193,17 @@ def extract_chunks(
                            strategy=strategy,
                            specs=specs,
                            )
-    chunks = [make_text_from_chunk(chunk) for chunk in chunks]
 
     if drop_empty:
         chunks = [c for c in chunks if len(c) > 0]
+
+    if include_span:
+        indices = [make_indices_from_chunk(chunk, text) for chunk in chunks]
+        chunk_texts = [make_text_from_chunk(chunk) for chunk in chunks]
+        chunks = list(zip(indices, chunk_texts))
+    else:
+        chunks = [make_text_from_chunk(chunk) for chunk in chunks]
+
     if as_tuples:
         chunks = add_id(chunks)
 
@@ -257,9 +267,17 @@ def create_chunks(
 def make_text_from_chunk(
         chunk: list
         ) -> str:
-    """Reconstruct data from chunks."""
+    """Reconstruct text data from a chunk."""
     texts = [sent.strip() for sent in chunk]
     return" ".join([text for text in texts])
+
+def make_indices_from_chunk(chunk, text):
+    """Reconstruct indices of chunk span in original text."""
+    start_sent = chunk[0]
+    end_sent = chunk[-1]
+    start_idx = find_substring_indices(text, [start_sent])[0][0]
+    end_idx = find_substring_indices(text, [end_sent])[0][1]
+    return start_idx, end_idx
 
 
 # Example usage

@@ -2,10 +2,10 @@ import pandas as pd
 from tqdm.auto import tqdm
 
 from ..constants import (TEXT_COL, PARA_COL, PARAS_COL, PARA_N_COL, PARA_ID_COL,
-                                     BULLETS)
+                         BULLETS, PARA_SPAN_COL)
 from .para_splitting import split_clean_paragraphs
 from ..patterns import PARAGRAPH_PATTERN_SIMPLE, ENUM_PATTERN_NO_DATE
-from ..utils import column_list, increment_ids, add_id, clean_placeholders
+from ..utils import column_list, increment_ids, add_id, clean_placeholders, find_substring_indices
 
 # Enable progress bars for dataframe .map and .apply methods
 tqdm.pandas()
@@ -18,7 +18,8 @@ def split_paragraphs(
         drop_text: bool = True,
         mathematical_ids: bool = False,
         drop_placeholders: list = None,
-        drop_empty: bool = True
+        drop_empty: bool = True,
+        include_span: bool = False
         ) -> pd.DataFrame:
     """
     In a pandas dataframe containing a column with data data, insert three
@@ -36,10 +37,20 @@ def split_paragraphs(
                                                   function=function,
                                                   drop_placeholders=drop_placeholders,
                                                   mathematical_ids=mathematical_ids,
-                                                  drop_empty=drop_empty
+                                                  drop_empty=drop_empty,
+                                                  include_span=include_span
                                                   )
     df = df.explode(PARAS_COL)
-    df[[PARA_ID_COL, PARA_COL]] = df[PARAS_COL].tolist()
+    df = df.reset_index(drop=True)
+
+    # unpack sentence data into separate columns
+    paras_df = pd.DataFrame(df[PARAS_COL].tolist())
+    if include_span:
+        df[[PARA_ID_COL, PARA_SPAN_COL, PARA_COL]] = paras_df
+    else:
+        df[[PARA_ID_COL, PARA_COL]] = paras_df
+
+    # keep only desired columns for output dataframe
     columns = [c for c in column_list(PARA_COL, column) if c in df.columns]
 
     if drop_text:
@@ -53,7 +64,8 @@ def find_paragraphs(
         function: callable = None,
         mathematical_ids: bool = False,
         drop_placeholders: list = None,
-        drop_empty: bool = True
+        drop_empty: bool = True,
+        include_span: bool = False
         ) -> pd.DataFrame:
     """
     Create new columns with data split into paragraphs and no of paragraphs
@@ -68,7 +80,8 @@ def find_paragraphs(
                                               function=function,
                                               drop_placeholders=drop_placeholders,
                                               drop_empty=drop_empty,
-                                              as_tuples=True
+                                              as_tuples=True,
+                                              include_span=include_span
                                               )
     )
 
@@ -88,6 +101,7 @@ def make_paragraphs_from_text(
         drop_placeholders: list = None,
         drop_empty: bool = True,
         as_tuples: bool = False,
+        include_span: bool = False
         ) -> list:
     """Split a string containing natural language data into paragraphs. Returns
     a list of paragraphs. Optionally, return a list of tuples with paragraph
@@ -113,6 +127,10 @@ def make_paragraphs_from_text(
 
     if drop_empty:
         paragraphs = [p for p in paragraphs if len(p) > 0]
+
+    if include_span:
+        indices = find_substring_indices(text, paragraphs)
+        paragraphs = list(zip(indices, paragraphs))
 
     if as_tuples:
         paragraphs = add_id(paragraphs)

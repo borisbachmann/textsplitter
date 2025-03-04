@@ -2,7 +2,7 @@ from typing import List, Any, Tuple, Union, Optional
 
 import pandas as pd
 
-from .constants import id_pattern, n_pattern, PLACEHOLDERS
+from .constants import id_pattern, n_pattern, PLACEHOLDERS, span_pattern
 
 
 def column_list(base_col, text_col):
@@ -13,6 +13,7 @@ def column_list(base_col, text_col):
         text_col,
         id_pattern(base_col),
         base_col,
+        span_pattern(base_col),
         n_pattern(base_col)
     ]
 
@@ -23,7 +24,10 @@ def increment_ids(tuple_list, increment):
 
 def add_id(elements: List[Any]) -> List[Tuple[int, Any]]:
     """
-    Add an index to each element in the list.
+    Add an index to each element in the list. If the elements are tuples, the
+    index is included as the first element in the tuple. Otherwise, returns a
+    list of tuples where the first element is the index and the second element
+    is the corresponding element from the input list.
 
     Args:
         elements (List[Any]): A list of elements of any type.
@@ -31,7 +35,10 @@ def add_id(elements: List[Any]) -> List[Tuple[int, Any]]:
         List[Tuple[int, Any]]: A list of tuples where each tuple contains an
         index (int) and the corresponding element from the input list.
     """
-    return list(enumerate(elements))
+    if all(isinstance(e, tuple) for e in elements):
+        return [(idx, *e) for idx, e in enumerate(elements)]
+    else:
+        return list(enumerate(elements))
 
 
 def clean_placeholders(
@@ -69,3 +76,18 @@ def clean_placeholders(
     else:
         raise ValueError("Data must be a pandas dataframe, list of strings or "
                          "list of tuples.")
+
+
+def find_substring_indices(text, substrings):
+    indices = []
+    start = 0
+
+    for substring in substrings:
+        start = text.find(substring, start)
+        if start == -1:
+            raise ValueError(f"Substring '{substring}' not found in text.")
+        end = start + len(substring)
+        indices.append((start, end))
+        start = end  # Move start to the end of the current substring for the next search
+
+    return indices
