@@ -88,3 +88,9 @@ BULLETS = ['-', '–', '—', '•', '...']   # Various types of bullets
 
 # Default language codes and arguments
 DEFAULT_LANGUAGE = {"ISO 639-1": "de"}
+
+# Standard specs for paragrapher
+STANDARD_PARA_SPECS = {
+    "paragrapher": "clean",
+    "drop_placeholders": []
+}
