@@ -5,6 +5,8 @@ import spacy
 from tqdm.auto import tqdm
 from wtpsplit import SaT
 
+from text_splitter.constants import PARA_COL
+
 
 class SpacySentencizer:
     """
@@ -109,7 +111,7 @@ class PysbdSentencizer:
 
 
 # Mapping of segmenter names to segmenter classes
-SEGMENTER_MAP = {
+SENT_SEGMENTER_MAP = {
     "pysbd": PysbdSentencizer,
     "sat":   SatSentencizer,
     "spacy": SpacySentencizer

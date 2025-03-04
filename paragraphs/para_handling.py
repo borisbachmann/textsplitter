@@ -1,6 +1,9 @@
+from typing import Dict, Union, Tuple, Callable, Any
+
 import pandas as pd
 from tqdm.auto import tqdm
 
+from .paragrapher import Paragrapher
 from ..constants import (TEXT_COL, PARA_COL, PARAS_COL, PARA_N_COL, PARA_ID_COL,
                          BULLETS, PARA_SPAN_COL)
 from .para_splitting import split_clean_paragraphs
@@ -97,11 +100,12 @@ def find_paragraphs(
 
 def make_paragraphs_from_text(
         text: str,
-        function: callable = None,
-        drop_placeholders: list = None,
+        paragraph_specs: (Dict[str, Any]) = None,
         drop_empty: bool = True,
         as_tuples: bool = False,
-        include_span: bool = False
+        include_span: bool = False,
+        *args,
+        **kwargs
         ) -> list:
     """Split a string containing natural language data into paragraphs. Returns
     a list of paragraphs. Optionally, return a list of tuples with paragraph
@@ -110,18 +114,26 @@ def make_paragraphs_from_text(
     Paragraphs are split based on a function passed as an argument. If no
     function is provided, a standard function will be selected under the hood.
     """
-    if function is not None:
-        paragraphs = function(text)
-    else:
-        paragraphs = split_clean_paragraphs(
-            text,
-            merge_bullets=True,
-            paragraph_pattern=PARAGRAPH_PATTERN_SIMPLE,
-            enum_pattern=ENUM_PATTERN_NO_DATE,
-            bullets=BULLETS
-        )
+    if paragraph_specs is None:
+        paragraph_specs = {}
 
-    if drop_placeholders is not None:
+    paragrapher_specs = paragraph_specs.get("paragrapher", ("clean", None))
+    drop_placeholders = paragraph_specs.get("drop_placeholders", [])
+
+    if isinstance(paragrapher_specs, str):
+        paragrapher = Paragrapher(paragrapher_specs)
+    elif isinstance(paragrapher_specs, tuple):
+        paragrapher = Paragrapher(*paragrapher_specs)
+    elif callable(paragrapher_specs):
+        paragrapher = Paragrapher(paragrapher_specs)
+    else:
+        raise ValueError("Paragrapher must be either a built-in type (specified "
+                         "by string or tuple of string and specs) or a custom "
+                         "callable.")
+
+    paragraphs = paragrapher.split(text, *args, **kwargs)
+
+    if drop_placeholders:
         paragraphs = clean_placeholders(paragraphs,
                                         placeholders=drop_placeholders)
 

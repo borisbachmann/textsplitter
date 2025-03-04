@@ -7,7 +7,7 @@ PARAGRAPH_PATTERN = re.compile(r'''
     |
     \n{2,}            # Always split after two or more newlines
     ''', re.VERBOSE)
-PARAGRAPH_PATTERN_SIMPLE = r'\n'
+PARAGRAPH_PATTERN_SIMPLE = re.compile(r'\n')
 
 # Excludes lines that start with dates like "12. September", "12.09.", or "12.3."
 ENUM_PATTERN_NO_DATE = re.compile(r'^(?!\d{1,2}\.\s*(?:Januar|Februar|März'

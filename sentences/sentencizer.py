@@ -1,9 +1,9 @@
 from typing import Union, List, Protocol, Optional
 
-from .backends import SEGMENTER_MAP
+from .sent_backends import SENT_SEGMENTER_MAP
 
 
-class SegmenterProtocol(Protocol):
+class SentSegmenterProtocol(Protocol):
     """
     Protocol for custom sentence segmenters to implement.
 
@@ -19,7 +19,6 @@ class SegmenterProtocol(Protocol):
                  data: List[str],
                  show_progress: bool=False
                  ) -> List[List[str]]:
-
         ...
 
 class Sentencizer:
@@ -37,17 +36,17 @@ class Sentencizer:
             segmenters.
     """
     def __init__(self,
-                 segmenter: Union[str, SegmenterProtocol],
+                 segmenter: Union[str, SentSegmenterProtocol],
                  language_or_model: Optional[str] = None
                  ):
         if isinstance(segmenter, str):
-            if segmenter not in SEGMENTER_MAP:
+            if segmenter not in SENT_SEGMENTER_MAP:
                 raise ValueError(f"Invalid segmenter '{segmenter}'. "
-                                 f"Must be in {SEGMENTER_MAP.keys()}.")
+                                 f"Must be in {SENT_SEGMENTER_MAP.keys()}.")
             if language_or_model is None:
                 raise ValueError("Language or model must be provided for "
                                  "built-in segmenters.")
-            self._segmenter = SEGMENTER_MAP[segmenter](language_or_model)
+            self._segmenter = SENT_SEGMENTER_MAP[segmenter](language_or_model)
         elif callable(segmenter):
             self._segmenter = segmenter
         else:
