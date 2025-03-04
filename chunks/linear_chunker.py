@@ -38,6 +38,7 @@ def linear_chunking(
 
     for i, sent in enumerate(sentences):
         sent_length = length_metric(sent)
+
         if current_length + sent_length <= max_length:
 
             if current_chunk:
