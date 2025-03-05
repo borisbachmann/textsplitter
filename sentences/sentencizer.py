@@ -42,7 +42,8 @@ class Sentencizer:
         if isinstance(segmenter, str):
             if segmenter not in SENT_SEGMENTER_MAP:
                 raise ValueError(f"Invalid segmenter '{segmenter}'. "
-                                 f"Must be in {SENT_SEGMENTER_MAP.keys()}.")
+                                 f"Must be in "
+                                 f"{list(SENT_SEGMENTER_MAP.keys())}.")
             if language_or_model is None:
                 raise ValueError("Language or model must be provided for "
                                  "built-in segmenters.")

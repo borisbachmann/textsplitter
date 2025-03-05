@@ -4,7 +4,7 @@ from collections import defaultdict
 import community as community_louvain
 import networkx as nx
 
-from .chunk_utils import calculate_similarity, find_overlap, sigmoid
+from text_splitter.chunks.chunk_utils import calculate_similarity, find_overlap, sigmoid
 
 
 def graph_chunking(

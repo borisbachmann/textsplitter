@@ -7,8 +7,8 @@ from sentence_transformers import SentenceTransformer
 import spacy
 from tqdm.auto import tqdm
 
-from .graph_chunker import graph_chunking
-from .linear_chunker import linear_chunking
+from text_splitter.chunks.chunkers.graph_chunker import graph_chunking
+from text_splitter.chunks.chunkers.linear_chunker import linear_chunking
 from .chunk_utils import TokenCounter
 from ..constants import (TEXT_COL, CHUNK_COL, CHUNKS_COL, CHUNK_N_COL,
                          CHUNK_ID_COL, DEFAULT_SCOPE, DEFAULT_STRATEGY,

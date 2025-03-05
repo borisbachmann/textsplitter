@@ -1,33 +1,41 @@
-from typing import Union, List, Protocol, Optional
+from typing import Union, List, Protocol, Optional, Dict, Any
 
-from .chunk_backends import CHUNK_SEGMENTER_MAP
+from sentence_transformers import SentenceTransformer
+from tqdm.auto import tqdm
+
+from .chunk_backends import CHUNKER_MAP
+from .chunk_handling import make_text_from_chunk
+from .. import EmbeddingModel
+from ..sentences.sent_handling import SentenceModule
 
 
-class ChunkSegmenterProtocoll(Protocol):
+class ChunkerProtocoll(Protocol):
     """
-    Protocol for custom sentence segmenters to implement.
+    Protocol for custom chunkers to implement.
 
     Args:
-        data: List[str]: List of strings to split into sentences.
+        data: Union[List[str], List[List[str]]]: List of strings or list of
+            lists of strings to split into chunks.
         show_progress: bool: Show progress bar if True.
 
     Returns:
-        List[List[str]]: List of lists of sentences as strings with one
-            list of sentences for each input string.
+        List[List[str]]: List or list of lists of chunks as strings with one
+            list of chunks for each input string or list of strings.
     """
     def __call__(self,
-                 data: List[str],
-                 show_progress: bool=False
+                 data: Union[List[str], List[List[str]]],
+                 show_progress: bool = False
                  ) -> List[List[str]]:
         ...
 
 class Chunker:
     """
-    Sentence splitter class that wraps around different chunk segmenters.
-    Takes a text or list of texts and returns a list of chunks for each
-    text. Initialized with the name of a built-in chunker and a corresponding
-    transformer model name. Alternatively, a custom segmenter callable that
-    implements the ChunkSegmenterProtocoll can be passed.
+    Chunker class that wraps around different chunk segmenters. Takes a text
+    or alternatively a lists of texts and returns a list of chunks per text
+    either in a flat list or a list of lists. Initialized with the name of a
+    built-in chunker and a corresponding set of parameters. Alternatively
+    initiated with a custom callable that implements the ChunkerProtocol.
+    transformer model name.
 
     Args:
         segmenter: Union[str, SegmenterProtocol]: Name of a built-in segmenter
@@ -35,69 +43,122 @@ class Chunker:
         language_or_model: Optional[str]: Language or model name for built-in
             segmenters.
     """
+
     def __init__(self,
-                 segmenter: Union[str, ChunkSegmenterProtocoll],
-                 model: Optional[str] = None,
-                 specs: Optional[dict] = None,
-                 ):
-        if isinstance(segmenter, str):
-            if segmenter not in CHUNK_SEGMENTER_MAP:
-                raise ValueError(f"Invalid segmenter '{segmenter}'. "
-                                 f"Must be in {CHUNK_SEGMENTER_MAP.keys()}.")
-            if model is None:
-                raise ValueError("A transfomer model must be provided for "
-                                 "built-in chunk segmenters.")
-            if specs is None:
-                specs = {}
-            self._segmenter = CHUNK_SEGMENTER_MAP[segmenter](model, **specs)
-        elif callable(segmenter):
-            self._segmenter = segmenter
-        else:
-            raise ValueError("Segmenter must be a string or callable. Custom "
-                             "callables must implement the SegmenterProtocol.")
+                 model: Union[str, EmbeddingModel, SentenceTransformer],
+                 specs: Dict[str, Any]):
+        self.model = self._load_model(model)
+        self.tokenizer = self.model.tokenizer
+
+        # Load internal SentenceModule
+        sent_specs = {"sentencizer": specs.get("sentencizer", ("pysbd", "de")),
+                      "show_progress": False}
+        para_specs = {"paragrapher": specs.get("paragrapher", "clean"),
+                      "drop_placeholders": specs.get("drop_placeholders", [])}
+        self.sentencizer = SentenceModule(sent_specs, para_specs)
+
+        # Load working parameters
+        chunker = specs.get("chunker", "linear")
+        chunker_specs = specs.get("chunker_specs", {})
+        chunker_specs["length_metric"] = self._calculate_length
+
+        self._chunker = self._load_chunker(chunker, chunker_specs)
 
     def split(self,
               data: Union[str, List[str]],
-              show_progress: bool = False
-              ) -> Union[List[str], List[List[str]]]:
-        """
-        Split text into sentences. If data is a string, return a list of
-        strings, if data is a list of strings, return a list of lists of
-        strings. Returned sentences are stripped of leading and trailing
-        whitespace and empty strings are removed.
-
-        Args:
-        data: Union[str, List[str]]: Text to split into sentences. If a list of
-            strings, each string is split into sentences separately.
-        show_progress: bool: Show progress bar if True.
-
-        Returns:
-        Union[List[str], List[List[str]]]: List of sentences as strings (if
-            input is a string) or list of lists of sentences as strings (if
-            input is a list of strings).
-        """
+              show_progress: bool = False,
+              **chunker_kwargs
+              ) -> Union[List[List[str]], List[str]]:
         if isinstance(data, str):
             # wrap to ensure that the segmenter receives a list
-            sentences = self._segmenter([data])
-            sentences = self._postprocess(sentences)
+            chunks = self._split([data], **chunker_kwargs)
+            chunks = self._postprocess(chunks)
             # unwrap to return a single list
-            return sentences[0]
+            return chunks[0]
         if isinstance(data, list):
             if not data:
                 return []
             if all([isinstance(e, str) for e in data]):
-                sentences = self._segmenter(data, show_progress)
-                sentences = self._postprocess(sentences)
-                return sentences
+                chunks = self._split(data, show_progress, **chunker_kwargs)
+                chunks = self._postprocess(chunks)
+                return chunks
         raise ValueError("Data must be either string or list of strings only.")
 
+    def _split(self,
+               data: List[str],
+               show_progress: bool = False,
+               **chunker_kwargs
+               ) -> List[List[str]]:
+        if show_progress:
+            sentences = [self.sentencizer.split(t)
+                         for t in tqdm(data, desc="Splitting sentences")]
+            print(sentences)
+            embeddings = [self._create_embeddings(s)
+                          for s in tqdm(sentences, desc="Creating embeddings")]
+            chunks = [self._chunker(sentences=s,
+                                    embeddings=e,
+                                    **chunker_kwargs)
+                      for s, e in tqdm(zip(sentences, embeddings),
+                                       desc="Chunking",
+                                       total=len(sentences))
+                      ]
+            chunks = [[make_text_from_chunk(c) for c in chunk_list]
+                      for chunk_list in chunks]
+        else:
+            sentences = [self.sentencizer.split(t) for t in data]
+            embeddings = [self._create_embeddings(s) for s in sentences]
+            chunks = [self._chunker(sentences=s,
+                                    embeddings=e,
+                                    **chunker_kwargs)
+                      for s, e in zip(sentences, embeddings)
+                      ]
+            chunks = [[make_text_from_chunk(c) for c in chunk_list]
+                      for chunk_list in chunks]
+        return chunks
+
+    def _create_embeddings(self, sentence, show_progress=False):
+        return self.model.encode(sentence, show_progress_bar=show_progress)
+
     def _postprocess(self,
-                     sentences: List[List[str]]
-                    ) -> List[List[str]]:
+                     chunks: List[List[str]]
+                     ) -> List[List[str]]:
         """
         Clear away irregularities in the sentence lists produced by different
         sentence segmenters. Removes leading and trailing whitespace and empty
         strings.
         """
-        return [[s.strip() for s in sent_list if s.strip()]
-                for sent_list in sentences]
+        return [[s.strip() for s in chunk_list if s.strip()]
+                for chunk_list in chunks]
+
+    def _calculate_length(self, sentence):
+        tokens = self.tokenizer(sentence)
+        return len(tokens["input_ids"])
+
+    def _load_model(self, model):
+        return load_model(model)
+
+    def _load_chunker(self,
+                      chunker: Union[str, ChunkerProtocoll],
+                      chunker_specs: Dict[str, Any]
+                      ):
+        if isinstance(chunker, str):
+            if chunker not in CHUNKER_MAP:
+                raise ValueError(f"Invalid segmenter '{chunker}'. "
+                                 f"Must be in: {list(CHUNKER_MAP.keys())}.")
+            return CHUNKER_MAP[chunker](**chunker_specs)
+        elif callable(chunker):
+            return chunker
+        else:
+            raise ValueError("Chunker must be a string or callable. Custom "
+                             "callables must implement the ChunkerProtocoll.")
+
+def load_model(model: Union[str, EmbeddingModel, SentenceTransformer]
+               ) -> Union[EmbeddingModel, SentenceTransformer, str]:
+    if isinstance(model, str):
+        return EmbeddingModel(model)
+    elif (isinstance(model, EmbeddingModel) or
+          isinstance(model, SentenceTransformer)):
+        return model
+    else:
+        raise ValueError("Model must be a string or an instance of "
+                         "EmbeddingModel or SentenceTransformer.")

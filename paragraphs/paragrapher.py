@@ -42,7 +42,8 @@ class Paragrapher:
         if isinstance(segmenter, str):
             if segmenter not in PARA_SEGMENTER_MAP:
                 raise ValueError(f"Invalid segmenter '{segmenter}'. "
-                                 f"Must be in {PARA_SEGMENTER_MAP.keys()}.")
+                                 f"Must be in "
+                                 f"{list(PARA_SEGMENTER_MAP.keys())}.")
             if specs is not None:
                 self._segmenter = PARA_SEGMENTER_MAP[segmenter](specs)
             else:

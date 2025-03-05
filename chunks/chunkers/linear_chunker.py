@@ -2,8 +2,8 @@ from typing import Callable, List, Optional
 
 from numpy.typing import NDArray
 
-from .chunk_utils import calculate_similarity
-from ..constants import DEFAULT_MAX_LENGTH, DEFAULT_THRESHOLD, DEFAULT_METRIC
+from text_splitter.chunks.chunk_utils import calculate_similarity
+from text_splitter.constants import DEFAULT_MAX_LENGTH, DEFAULT_THRESHOLD, DEFAULT_METRIC
 
 
 def linear_chunking(
