@@ -7,19 +7,67 @@ from sentence_transformers import SentenceTransformer
 import spacy
 from tqdm.auto import tqdm
 
-from text_splitter.chunks.chunkers.graph_chunker import graph_chunking
-from text_splitter.chunks.chunkers.linear_chunker import linear_chunking
+from .chunker import Chunker
+#from text_splitter.chunks.chunkers.graph_chunker import graph_chunking
+#from text_splitter.chunks.chunkers.linear_chunker import linear_chunking
 from .chunk_utils import TokenCounter
 from ..constants import (TEXT_COL, CHUNK_COL, CHUNKS_COL, CHUNK_N_COL,
                          CHUNK_ID_COL, DEFAULT_SCOPE, DEFAULT_STRATEGY,
                          DEFAULT_RESOLUTION)
-from ..embeddings import create_embeddings
-from ..sentences.sent_handling import make_sentences_from_text
+#from ..embeddings import create_embeddings
+#from ..sentences.sent_handling import make_sentences_from_text
 from ..utils import column_list, increment_ids, add_id, find_substring_indices
 
 # Enable progress bars for dataframe .map and .apply methods
 tqdm.pandas()
 
+
+class ChunkModule:
+    def __init__(self, model, chunk_specs, para_specs, sent_specs):
+        specs = self._compile_specs(chunk_specs, para_specs, sent_specs)
+        self.chunker = Chunker(model, specs)
+
+    def _compile_specs(self, chunk_specs, para_specs, sent_specs):
+        specs = {}
+
+        # resolve chunking specs
+        specs["chunker"] = chunk_specs.get("chunker", "linear")
+        chunk_specs = {k: v for k, v in chunk_specs.items() if k != "chunker"}
+        specs["chunk_specs"] = chunk_specs
+
+        # resolve paragraphing specs
+        for k, v in para_specs.items():
+            specs[k] = v
+
+        # resolve sentencizing specs
+        for k, v in sent_specs.items():
+            specs[k] = v
+
+        return specs
+
+    def chunk(self,
+              text: str,
+              as_tuples: bool = False,
+              include_span: bool = False,
+              ) -> list:
+        """Split a string containing natural language data into chunks. Returns
+        a list of chunks as strings. Optionally, return a list of tuples with
+        chunk index and chunk as strings. Uses spacy for sentence splitting
+        and requires a spacy language model as input."""
+
+        if include_span:
+            chunks = self.chunker.split(text, compile=False, postprocess=False)
+            indices = [make_indices_from_chunk(c, text) for c in chunks]
+            chunks = self.chunker._compile_chunks(chunks)
+            chunks = self.chunker._postprocess(chunks)
+            chunks = list(zip(indices, chunks))
+        else:
+            chunks = self.chunker.split(text, compile=True, postprocess=True)
+
+        if as_tuples:
+            chunks = add_id(chunks)
+
+        return chunks
 
 def split_chunks(
         input_df: pd.DataFrame,

@@ -4,9 +4,9 @@ from sentence_transformers import SentenceTransformer
 from tqdm.auto import tqdm
 
 from .chunk_backends import CHUNKER_MAP
-from .chunk_handling import make_text_from_chunk
-from .. import EmbeddingModel
+from ..embeddings import EmbeddingModel
 from ..sentences.sent_handling import SentenceModule
+from ..utils import uniform_depth
 
 
 class ChunkerProtocoll(Protocol):
@@ -67,20 +67,30 @@ class Chunker:
     def split(self,
               data: Union[str, List[str]],
               show_progress: bool = False,
+              compile: bool = True,
+              postprocess: bool = True,
               **chunker_kwargs
               ) -> Union[List[List[str]], List[str]]:
         if isinstance(data, str):
             # wrap to ensure that the segmenter receives a list
             chunks = self._split([data], **chunker_kwargs)
-            chunks = self._postprocess(chunks)
+            if compile:
+                chunks = self._compile_chunks(chunks)
+            if postprocess:
+                chunks = self._postprocess(chunks)
             # unwrap to return a single list
             return chunks[0]
         if isinstance(data, list):
             if not data:
                 return []
             if all([isinstance(e, str) for e in data]):
-                chunks = self._split(data, show_progress, **chunker_kwargs)
+                chunks = self._split(data, show_progress,
+                                     **chunker_kwargs)
                 chunks = self._postprocess(chunks)
+                if compile:
+                    chunks = self._compile_chunks(chunks)
+                if postprocess:
+                    chunks = self._postprocess(chunks)
                 return chunks
         raise ValueError("Data must be either string or list of strings only.")
 
@@ -92,7 +102,6 @@ class Chunker:
         if show_progress:
             sentences = [self.sentencizer.split(t)
                          for t in tqdm(data, desc="Splitting sentences")]
-            print(sentences)
             embeddings = [self._create_embeddings(s)
                           for s in tqdm(sentences, desc="Creating embeddings")]
             chunks = [self._chunker(sentences=s,
@@ -102,8 +111,6 @@ class Chunker:
                                        desc="Chunking",
                                        total=len(sentences))
                       ]
-            chunks = [[make_text_from_chunk(c) for c in chunk_list]
-                      for chunk_list in chunks]
         else:
             sentences = [self.sentencizer.split(t) for t in data]
             embeddings = [self._create_embeddings(s) for s in sentences]
@@ -112,23 +119,38 @@ class Chunker:
                                     **chunker_kwargs)
                       for s, e in zip(sentences, embeddings)
                       ]
-            chunks = [[make_text_from_chunk(c) for c in chunk_list]
-                      for chunk_list in chunks]
         return chunks
 
     def _create_embeddings(self, sentence, show_progress=False):
         return self.model.encode(sentence, show_progress_bar=show_progress)
 
     def _postprocess(self,
-                     chunks: List[List[str]]
-                     ) -> List[List[str]]:
+                     chunks: (Union[List[str], List[List[str]],
+                              List[List[List[str]]]])
+                     ) -> (Union[List[str], List[List[str]],
+                           List[List[List[str]]]]):
         """
         Clear away irregularities in the sentence lists produced by different
         sentence segmenters. Removes leading and trailing whitespace and empty
         strings.
         """
-        return [[s.strip() for s in chunk_list if s.strip()]
-                for chunk_list in chunks]
+        depth = uniform_depth(chunks)
+        if depth == 1:
+            return [c.strip() for c in chunks if c.strip()]
+        if depth == 2:
+            return [[c.strip() for c in chunk if c.strip()]
+                    for chunk in chunks]
+        if depth == 3:
+            return [[[s.strip() for s in chunk if s.strip()] for chunk in chunk_list]
+                    for chunk_list in chunks]
+
+    def _compile_chunks(self, chunks):
+        depth = uniform_depth(chunks)
+        if depth == 2:
+            return [make_text_from_chunk(c) for c in chunks]
+        if depth == 3:
+            return [[make_text_from_chunk(c) for c in chunk_list]
+                    for chunk_list in chunks]
 
     def _calculate_length(self, sentence):
         tokens = self.tokenizer(sentence)
@@ -162,3 +184,10 @@ def load_model(model: Union[str, EmbeddingModel, SentenceTransformer]
     else:
         raise ValueError("Model must be a string or an instance of "
                          "EmbeddingModel or SentenceTransformer.")
+
+def make_text_from_chunk(
+        chunk: list
+        ) -> str:
+    """Reconstruct text data from a chunk."""
+    texts = [sent.strip() for sent in chunk]
+    return" ".join([text for text in texts])

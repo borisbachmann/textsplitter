@@ -91,3 +91,34 @@ def find_substring_indices(text, substrings):
         start = end  # Move start to the end of the current substring for the next search
 
     return indices
+
+def uniform_depth(obj: Any) -> int:
+    """Return the depth of an object of nested lists. "Depth" signifies how many
+    times you can uniformly peel away layers of lists before hitting a non-list
+    element that can't be peeled any further. If it's not a list at all, the
+    depth is 0.
+
+    Examples:
+    - [['foo'], ['bar']] -> 2
+      (layer #1 is a list of lists, layer #2 is a list of strings, so we stop)
+    - [['foo'], 'bar'] -> 1
+      (layer #1: not all subelements are lists, so we stop immediately)
+    - [] -> 1
+      (layer #1 is a list, but it’s empty; we can’t go deeper)
+    - 'foo' -> 0
+      (not even a list)
+    """
+    depth = 0
+    while isinstance(obj, list):
+        depth += 1
+        # stop if we hit an empty list
+        if not obj:
+            break
+        # Check if all subelements are lists, then peel away list layer by
+        # flattening them all
+        if all(isinstance(sub, list) for sub in obj):
+            obj = [item for sub in obj for item in sub]
+        # If that's not the case, we stop
+        else:
+            break
+    return depth
