@@ -22,8 +22,57 @@ from ..utils import column_list, increment_ids, add_id, find_substring_indices
 tqdm.pandas()
 
 
+class DummyChunkModule:
+    def __init__(self):
+        pass
+
+    def chunk(self,
+              text: str,
+              as_tuples: bool = False,
+              include_span: bool = False
+              ) -> list:
+        print("Chunking not available.")
+        chunks = [text]
+
+        if include_span:
+            indices = [(0, len(text))]
+            chunks = list(zip(indices, chunks))
+
+        if as_tuples:
+            chunks = add_id(chunks)
+
+        return chunks
+
+    def chunk_df(self,
+                 input_df: pd.DataFrame,
+                 column: str = TEXT_COL,
+                 drop_text: bool = True,
+                 mathematical_ids: bool = False,
+                 include_span: bool = False
+                 ) -> pd.DataFrame:
+        print("Chunking not available.")
+        df = input_df.copy()
+        df[CHUNK_ID_COL] = 0
+        df[CHUNK_COL] = df[column]
+        if include_span:
+            df[CHUNK_SPAN_COL] = (0, len(df[column]))
+        df[CHUNK_N_COL] = 1
+
+        if mathematical_ids:
+            df[CHUNK_ID_COL] = df[CHUNK_ID_COL].map(lambda x: x + 1)
+
+        columns = [c for c in column_list(CHUNK_COL, column) if c in df.columns]
+
+        if drop_text:
+            columns.remove(column)
+
+        return df[columns]
+
+
+
 class ChunkModule:
-    def __init__(self, model, chunk_specs, para_specs, sent_specs):
+    def __init__(self, chunk_specs, para_specs, sent_specs):
+        model = chunk_specs.get("model")
         specs = self._compile_specs(chunk_specs, para_specs, sent_specs)
         self.chunker = Chunker(model, specs)
 
@@ -32,7 +81,8 @@ class ChunkModule:
 
         # resolve chunking specs
         specs["chunker"] = chunk_specs.get("chunker", "linear")
-        chunk_specs = {k: v for k, v in chunk_specs.items() if k != "chunker"}
+        chunk_specs = {k: v for k, v in chunk_specs.items()
+                       if k not in ["chunker", "model"]}
         specs["chunk_specs"] = chunk_specs
 
         # resolve paragraphing specs
@@ -96,12 +146,14 @@ class ChunkModule:
 
         df = input_df.copy()
 
+        tqdm.pandas(desc="Chunking texts")
         df[CHUNKS_COL] = df[column].progress_apply(
             lambda x: self.chunk(x,
                                  as_tuples=True,
                                  include_span=include_span
                                  )
         )
+        tqdm.pandas(desc="")  # reset progress bar description
 
         df = df.explode(CHUNKS_COL).reset_index(drop=True)
 
@@ -115,11 +167,11 @@ class ChunkModule:
         # count number of chunks in each text
         df[CHUNK_N_COL] = df.groupby(column)[column].transform("size")
 
-        # keep only desired columns for output dataframe
-        columns = [c for c in column_list(CHUNK_COL, column) if c in df.columns]
-
         if mathematical_ids:
             df[CHUNK_ID_COL] = df[CHUNK_ID_COL].map(lambda x: x + 1)
+
+        # keep only desired columns for output dataframe
+        columns = [c for c in column_list(CHUNK_COL, column) if c in df.columns]
 
         if drop_text:
             columns.remove(column)

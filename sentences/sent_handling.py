@@ -77,12 +77,14 @@ class SentenceModule:
 
         df = input_df.copy()
 
+        tqdm.pandas(desc="Splitting sentences")
         df[SENTS_COL] = df[column].progress_map(
             lambda text: self.split(text=text,
                                     as_tuples=True,
                                     include_span=include_span
                                     )
         )
+        tqdm.pandas(desc="")  # reset progress bar description
 
         df = df.explode(SENTS_COL).reset_index(drop=True)
 
@@ -96,11 +98,11 @@ class SentenceModule:
         # count sentences per text
         df[SENT_N_COL] = df.groupby(column)[column].transform("size")
 
-        # keep only desired columns for output dataframe
-        columns = [c for c in column_list(SENT_COL, column) if c in df.columns]
-
         if mathematical_ids:
             df[SENT_ID_COL] = df[SENT_ID_COL].map(lambda x: x + 1)
+
+        # keep only desired columns for output dataframe
+        columns = [c for c in column_list(SENT_COL, column) if c in df.columns]
 
         if drop_text:
             columns.remove(column)

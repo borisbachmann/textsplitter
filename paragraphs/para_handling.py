@@ -69,12 +69,14 @@ class ParagraphModule:
             """
             df = input_df.copy()
 
+            tqdm.pandas(desc="Splitting paragraphs")
             df[PARAS_COL] = df[column].progress_map(
                 lambda text: self.split(text=text,
                                         as_tuples=True,
                                         include_span=include_span
                                         )
             )
+            tqdm.pandas(desc="")  # reset progress bar description
 
             df = df.explode(PARAS_COL).reset_index(drop=True)
 
@@ -88,11 +90,11 @@ class ParagraphModule:
             # count paragraphs per text
             df[PARA_N_COL] = (df.groupby(column)[column].transform("size"))
 
-            # keep only desired columns for output dataframe
-            columns = [c for c in column_list(PARA_COL, column) if c in df.columns]
-
             if mathematical_ids:
                 df[PARA_ID_COL] = df[PARA_ID_COL].map(lambda x: x + 1)
+
+            # keep only desired columns for output dataframe
+            columns = [c for c in column_list(PARA_COL, column) if c in df.columns]
 
             if drop_text:
                 columns.remove(column)
