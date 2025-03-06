@@ -1,6 +1,6 @@
 from copy import deepcopy
 import inspect
-from typing import Optional
+from typing import Optional, Union, List
 
 import pandas as pd
 from sentence_transformers import SentenceTransformer
@@ -104,7 +104,17 @@ class ChunkModule:
         """Split a string containing natural language data into chunks. Returns
         a list of chunks as strings. Optionally, return a list of tuples also
         including chunk index and/or start and end indices of chunks in the
-        original text."""
+        original text.
+
+        Args:
+            text: str: Text to split into chunks
+            as_tuples: bool: Return chunks as tuples with index and text
+            include_span: bool: Include start and end indices of chunks
+            chunker_kwargs: dict: Additional arguments for chunker
+
+        Returns:
+            list: List of chunks as strings or tuples
+        """
         if include_span:
             ensure_separators = chunker_kwargs.pop("ensure_separators", False)
             chunks = self.chunker.split(text,
@@ -123,6 +133,52 @@ class ChunkModule:
 
         if as_tuples:
             chunks = add_id(chunks)
+
+        return chunks
+
+
+    def chunk_list(self,
+                   texts: list,
+                   as_tuples: bool = False,
+                   include_span: bool = False,
+                   **chunker_kwargs
+                   ) -> list:
+        """Split a list of strings containing natural language data into chunks.
+        Returns a list of chunks as strings. Optionally, return a list of tuples
+        also including chunk index and/or start and end indices of chunks in the
+        original text.
+
+        Args:
+            texts: list: List of texts to split into chunks
+            as_tuples: bool: Return chunks as tuples with index and text
+            include_span: bool: Include start and end indices of chunks
+            chunker_kwargs: dict: Additional arguments for chunker
+
+        Returns:
+            list: List of chunks as lists strings or tuples
+        """
+        if include_span:
+            ensure_separators = chunker_kwargs.pop("ensure_separators", False)
+            chunks = self.chunker.split(texts,
+                                        show_progress=True,
+                                        compile=False,
+                                        postprocess=False,
+                                        **chunker_kwargs)
+            indices = [[make_indices_from_chunk(c, text) for c in chunk_list]
+                       for text, chunk_list in zip(texts, chunks)]
+            chunks = self.chunker._compile_chunks(chunks, ensure_separators)
+            chunks = self.chunker._postprocess(chunks)
+            chunks = [list(zip(index_list, chunk_list))
+                      for index_list, chunk_list in zip(indices, chunks)]
+        else:
+            chunks = self.chunker.split(texts,
+                                        show_progress=True,
+                                        compile=True,
+                                        postprocess=True,
+                                        **chunker_kwargs)
+
+        if as_tuples:
+            chunks = [add_id(chunk_list) for chunk_list in chunks]git
 
         return chunks
 
