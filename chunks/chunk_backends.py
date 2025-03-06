@@ -37,11 +37,24 @@ class LinearChunker:
                  embeddings: List[NDArray],
                  **kwargs
                  ) -> List[List[str]]:
+        """
+        Call the linear chunking technique to create chunks from a list of
+        consecutive sentences and corresponding embeddings.
+
+        Args:
+            sentences (List[str]): List of sentences to be chunked.
+            embeddings (List[NDArray]): List of embeddings for each sentence.
+            **kwargs: Additional keyword arguments to be passed to the linear
+                chunking function:
+                - max_length (int): Maximum length of a chunk.
+                - threshold (float): Similarity threshold for chunking.
+        """
         return linear_chunking(sentences=sentences,
                                embeddings=embeddings,
                                length_metric=self.length_metric,
                                similarity_metric=self.similarity_metric,
                                **kwargs)
+
 
 class GraphChunker:
     """
@@ -70,11 +83,31 @@ class GraphChunker:
                  embeddings: List[NDArray],
                  **kwargs
                  ) -> List[List[str]]:
+        """
+        Call the graph chunking technique to create chunks from a list of
+        consecutive sentences and corresponding embeddings.
+
+        Args:
+            sentences (List[str]): List of sentences to be chunked.
+            embeddings (List[NDArray]): List of embeddings for each sentence.
+            **kwargs: Additional keyword arguments to be passed to the graph
+                chunking function:
+                - K (int): Number of preceeding and following sentences to
+                    connect in the graph.
+                - resolution (float): Resolution parameter for the Louvain
+                    community detection algorithm.
+
+        Returns:
+            List[List[str]]: List of chunks as lists of sentences within each
+                chunk.
+        """
         return graph_chunking(sentences=sentences,
                               embeddings=embeddings,
                               **kwargs)
 
 # Mapping of paragraph segmenter names to segmenter classes
+# To extend the chunker with additional chunking techniques, add the new
+# technique to the CHUNKER_MAP dictionary.
 CHUNKER_MAP = {
     "linear": LinearChunker,
     "graph": GraphChunker
