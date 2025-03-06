@@ -93,8 +93,8 @@ class SentenceModule:
         else:
             df[[SENT_ID_COL, SENT_COL]] = sents_df
 
-        # count paragraphs per text
-        df[SENT_N_COL] = (df.groupby(column)[column].transform("size"))
+        # count sentences per text
+        df[SENT_N_COL] = df.groupby(column)[column].transform("size")
 
         # keep only desired columns for output dataframe
         columns = [c for c in column_list(SENT_COL, column) if c in df.columns]

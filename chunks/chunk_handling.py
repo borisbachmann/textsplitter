@@ -13,7 +13,7 @@ from .chunker import Chunker
 from .chunk_utils import TokenCounter
 from ..constants import (TEXT_COL, CHUNK_COL, CHUNKS_COL, CHUNK_N_COL,
                          CHUNK_ID_COL, DEFAULT_SCOPE, DEFAULT_STRATEGY,
-                         DEFAULT_RESOLUTION)
+                         DEFAULT_RESOLUTION, CHUNK_SPAN_COL)
 #from ..embeddings import create_embeddings
 #from ..sentences.sent_handling import make_sentences_from_text
 from ..utils import column_list, increment_ids, add_id, find_substring_indices
@@ -51,9 +51,9 @@ class ChunkModule:
               include_span: bool = False,
               ) -> list:
         """Split a string containing natural language data into chunks. Returns
-        a list of chunks as strings. Optionally, return a list of tuples with
-        chunk index and chunk as strings. Uses spacy for sentence splitting
-        and requires a spacy language model as input."""
+        a list of chunks as strings. Optionally, return a list of tuples also
+        including chunk index and/or start and end indices of chunks in the
+        original text."""
 
         if include_span:
             chunks = self.chunker.split(text, compile=False, postprocess=False)
@@ -68,6 +68,64 @@ class ChunkModule:
             chunks = add_id(chunks)
 
         return chunks
+
+    def chunk_df(self,
+                input_df: pd.DataFrame,
+                column: str = TEXT_COL,
+                drop_text: bool = True,
+                mathematical_ids: bool = False,
+                include_span: bool = False
+                ) -> pd.DataFrame:
+        """
+        Split texts in a pandas DataFrame column into chunks. Returns a df
+        with chunks as rows, including chunk text, chunk index, and optionally
+        start and end indices of chunks in the original text. Original text id
+        and number of chunks in text and, optionally, text string are kept in
+        the output.
+
+        Args:
+            input_df: pd.DataFrame containing data data
+            column: name of the column containing data data
+            drop_text: whether to drop the original data column
+            mathematical_ids: whether to increment chunk IDs by 1 to avoid 0
+            include_span: whether to include start and end indices of chunks
+
+        Returns:
+            pd.DataFrame: DataFrame with chunks as rows
+        """
+
+        df = input_df.copy()
+
+        df[CHUNKS_COL] = df[column].progress_apply(
+            lambda x: self.chunk(x,
+                                 as_tuples=True,
+                                 include_span=include_span
+                                 )
+        )
+
+        df = df.explode(CHUNKS_COL).reset_index(drop=True)
+
+        # uunpack chunk data into separate columns
+        chunks_df = pd.DataFrame(df[CHUNKS_COL].tolist())
+        if include_span:
+            df[[CHUNK_ID_COL, CHUNK_SPAN_COL, CHUNK_COL]] = chunks_df
+        else:
+            df[[CHUNK_ID_COL, CHUNK_COL]] = chunks_df
+
+        # count number of chunks in each text
+        df[CHUNK_N_COL] = df.groupby(column)[column].transform("size")
+
+        # keep only desired columns for output dataframe
+        columns = [c for c in column_list(CHUNK_COL, column) if c in df.columns]
+
+        if mathematical_ids:
+            df[CHUNK_ID_COL] = df[CHUNK_ID_COL].map(lambda x: x + 1)
+
+        if drop_text:
+            columns.remove(column)
+
+        return df[columns]
+
 
 def split_chunks(
         input_df: pd.DataFrame,
