@@ -106,14 +106,11 @@ class SentenceModule:
 
         df = input_df.copy()
 
-        tqdm.pandas(desc="Splitting sentences")
-        df[SENTS_COL] = df[column].progress_map(
-            lambda text: self.split(text=text,
-                                    as_tuples=True,
-                                    include_span=include_span
-                                    )
-        )
-        tqdm.pandas(desc="")  # reset progress bar description
+        df[SENTS_COL] = pd.Series(self.split_list(df[column].tolist(),
+                                                  as_tuples=True,
+                                                  include_span=include_span
+                                                  )
+                                  )
 
         df = df.explode(SENTS_COL).reset_index(drop=True)
 

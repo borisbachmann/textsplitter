@@ -209,15 +209,12 @@ class ChunkModule:
 
         df = input_df.copy()
 
-        tqdm.pandas(desc="Chunking texts")
-        df[CHUNKS_COL] = df[column].progress_apply(
-            lambda x: self.chunk(x,
-                                 as_tuples=True,
-                                 include_span=include_span,
-                                 **chunker_kwargs
-                                 )
-        )
-        tqdm.pandas(desc="")  # reset progress bar description
+        df[CHUNKS_COL] = pd.Series(self.chunk_list(df[column].tolist(),
+                                                   as_tuples=True,
+                                                   include_span=include_span,
+                                                   **chunker_kwargs
+                                                   )
+                                   )
 
         df = df.explode(CHUNKS_COL).reset_index(drop=True)
 

@@ -56,7 +56,7 @@ class TextSplitter:
             data: Union[str, list, pd.Series, pd.DataFrame],
             mode: str,
             column: Optional[str] = TEXT_COL,
-            as_tuples: Optional[bool] = None,
+            as_tuples: Optional[bool] = False,
             include_span: Optional[bool] = False,
             mathematical_ids: Optional[bool] = False,
             drop_text: Optional[bool] = True,
@@ -83,7 +83,7 @@ class TextSplitter:
                                       )
         elif isinstance(data, pd.DataFrame):
             return self._split_df(data=data, mode=mode,
-                                  as_tuples=as_tuples,
+                                  #as_tuples=as_tuples,
                                   include_span=include_span,
                                   column=column,
                                   mathematical_ids=mathematical_ids,
@@ -139,24 +139,21 @@ class TextSplitter:
                         **chunker_kwargs
                         ) -> list:
         if mode == "sentences":
-            return [self.sentencizer.split(text=text,
-                                          as_tuples=as_tuples,
-                                          include_span=include_span
-                                           )
-                    for text in tqdm(data, desc="Splitting sentences")]
+            return self.sentencizer.split_list(texts=data,
+                                                as_tuples=as_tuples,
+                                                include_span=include_span
+                                                )
         elif mode == "paragraphs":
-            return [self.paragrapher.split(text=text,
-                                           as_tuples=as_tuples,
-                                           include_span=include_span
-                                           )
-                    for text in tqdm(data, desc="Splitting paragraphs")]
+            return self.paragrapher.split_list(texts=data,
+                                               as_tuples=as_tuples,
+                                               include_span=include_span
+                                               )
         elif mode == "chunks":
-            return [self.chunker.chunk(text=text,
-                                        as_tuples=as_tuples,
-                                        include_span=include_span,
-                                        **chunker_kwargs
-                                        )
-                    for text in tqdm(data, desc="Chunking texts")]
+            return self.chunker.chunk_list(texts=data,
+                                           as_tuples=as_tuples,
+                                           include_span=include_span,
+                                           **chunker_kwargs
+                                           )
 
     def _split_series(self,
                       data: pd.Series,
@@ -166,30 +163,27 @@ class TextSplitter:
                       **chunker_kwargs
                       ) -> pd.Series:
         if mode in ["sentences"]:
-            return data.progress_map(
-                lambda text: self.sentencizer.split(text=text,
-                                                    as_tuples=as_tuples,
-                                                    include_span=include_span
-                                                    ),
-                desc="Splitting sentences"
+            return pd.Series(
+                self.sentencizer.split_list(texts=data.tolist(),
+                                            as_tuples=as_tuples,
+                                            include_span=include_span
+                                            )
             )
 
         if mode == "paragraphs":
-            return data.progress_map(
-                lambda text: self.paragrapher.split(text=text,
-                                                    as_tuples=as_tuples,
-                                                    include_span=include_span),
-                desc="Splitting paragraphs"
+            return pd.Series(
+                self.paragrapher.split_list(texts=data.tolist(),
+                                            as_tuples=as_tuples,
+                                            include_span=include_span
+                                            )
             )
 
         elif mode == "chunks":
-            return data.progress_map(
-                lambda text: self.chunker.chunk(text=text,
-                                                as_tuples=as_tuples,
-                                                include_span=include_span
-                                                             **chunker_kwargs
-                                                ),
-                desc="Chunking texts"
+            return pd.Series(
+                self.chunker.chunk_list(texts=data.tolist(),
+                                        as_tuples=as_tuples,
+                                        include_span=include_span
+                                        )
             )
 
     def _split_df(self,

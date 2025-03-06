@@ -110,14 +110,11 @@ class ParagraphModule:
             """
             df = input_df.copy()
 
-            tqdm.pandas(desc="Splitting paragraphs")
-            df[PARAS_COL] = df[column].progress_map(
-                lambda text: self.split(text=text,
-                                        as_tuples=True,
-                                        include_span=include_span
-                                        )
-            )
-            tqdm.pandas(desc="")  # reset progress bar description
+            df[PARAS_COL] = pd.Series(self.split_list(df[column].tolist(),
+                                                 as_tuples=True,
+                                                 include_span=include_span
+                                                 )
+                                      )
 
             df = df.explode(PARAS_COL).reset_index(drop=True)
 
@@ -164,20 +161,22 @@ def split_paragraphs(
     function is provided, a standard function will be selected under the hood.
     """
     df = input_df.copy()
-    df[[PARAS_COL, PARA_N_COL]] = find_paragraphs(dataframe=df,
-                                                  column=column,
-                                                  paragraph_specs=paragraph_specs,
-                                                  mathematical_ids=mathematical_ids,
-                                                  include_span=include_span
-                                                  )
+    df[PARAS_COL] = find_paragraphs(dataframe=df,
+                                    column=column,
+                                    paragraph_specs=paragraph_specs,
+                                    mathematical_ids=mathematical_ids,
+                                    include_span=include_span
+                                    )
     df = df.explode(PARAS_COL)
     df = df.reset_index(drop=True)
+    print("Here")
 
     # unpack sentence data into separate columns
     paras_df = pd.DataFrame(df[PARAS_COL].tolist())
     if include_span:
         df[[PARA_ID_COL, PARA_SPAN_COL, PARA_COL]] = paras_df
     else:
+        print(paras_df.info())
         df[[PARA_ID_COL, PARA_COL]] = paras_df
 
     # keep only desired columns for output dataframe
