@@ -54,6 +54,35 @@ class SentenceModule:
 
         return sentences
 
+    def split_list(self,
+                   texts: list,
+                   as_tuples: bool = False,
+                   include_span: bool = False
+                   ) -> list:
+        """
+        Split a list of strings containing natural language data into sentences.
+        Returns a list of sentences per text as lists of strings. Optionally,
+        returns lists of tuples also including sentences index and/or start and
+        end indices of sentences in the original text.
+
+        Args:
+            texts: list: List of strings to split into sentences.
+            as_tuples: bool: Return sentences as tuples with index and sentence.
+            include_span: bool: Return sentences as tuples with index, start and
+                end indices of sentence in original text.
+
+        Returns:
+            list: List of lists of sentences as strings or tuples.
+        """
+        sentences = [self.split(text=text,
+                                as_tuples=as_tuples,
+                                include_span=include_span
+                                )
+                     for text in tqdm(texts, desc="Splitting sentences")
+                     ]
+
+        return sentences
+
     def split_df(self,
                  input_df: pd.DataFrame,
                  column: str = TEXT_COL,

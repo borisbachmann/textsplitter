@@ -37,8 +37,9 @@ class ParagraphModule:
             paragraphs = self.splitter.split(text)
 
             if self.drop_placeholders:
-                paragraphs = clean_placeholders(paragraphs,
-                                                placeholders=self.drop_placeholders)
+                paragraphs = clean_placeholders(
+                    paragraphs, placeholders=self.drop_placeholders
+                    )
 
             if include_span:
                 indices = find_substring_indices(text, paragraphs)
@@ -46,6 +47,46 @@ class ParagraphModule:
 
             if as_tuples:
                 paragraphs = add_id(paragraphs)
+
+            return paragraphs
+
+    def split_list(self,
+                   texts: list,
+                   as_tuples: bool = False,
+                   include_span: bool = False
+                   ) -> list:
+            """
+            Split a list of strings containing natural language data into
+            paragraphs. Returns a list of ppragraphs per text as lists of
+            strings. Optionally, returns lists of tuples also including
+            paragraph index and/or start and end indices of paragraphs in the
+            original text.
+
+            Args:
+                texts: list: List of strings to split into paragraphs.
+                as_tuples: bool: Return paragraphs as tuples if True.
+                include_span: bool: Include span information in output if True.
+
+            Returns:
+                list: List of paragraphs per text as list of strings or tuples
+                with paragraph ids and data.
+            """
+            paragraphs = self.splitter.split(texts)
+
+            if self.drop_placeholders:
+                paragraphs = [
+                    clean_placeholders(para_list,
+                                       placeholders=self.drop_placeholders)
+                     for para_list in paragraphs
+                    ]
+
+            if include_span:
+                paragraphs = [
+                    list(zip(find_substring_indices(text, para_list), para_list))
+                    for text, para_list in zip(texts, paragraphs)]
+
+            if as_tuples:
+                paragraphs = [add_id(para_list) for para_list in paragraphs]
 
             return paragraphs
 

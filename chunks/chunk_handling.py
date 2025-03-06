@@ -136,7 +136,6 @@ class ChunkModule:
 
         return chunks
 
-
     def chunk_list(self,
                    texts: list,
                    as_tuples: bool = False,
@@ -144,9 +143,9 @@ class ChunkModule:
                    **chunker_kwargs
                    ) -> list:
         """Split a list of strings containing natural language data into chunks.
-        Returns a list of chunks as strings. Optionally, return a list of tuples
-        also including chunk index and/or start and end indices of chunks in the
-        original text.
+        Returns a list of chunks per text as lists of strings. Optionally,
+        returns lists of tuples also including chunk index and/or start and end
+        indices of chunks in the original text.
 
         Args:
             texts: list: List of texts to split into chunks
@@ -178,10 +177,9 @@ class ChunkModule:
                                         **chunker_kwargs)
 
         if as_tuples:
-            chunks = [add_id(chunk_list) for chunk_list in chunks]git
+            chunks = [add_id(chunk_list) for chunk_list in chunks]
 
         return chunks
-
 
     def chunk_df(self,
                 input_df: pd.DataFrame,
