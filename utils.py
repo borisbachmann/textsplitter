@@ -111,34 +111,12 @@ def uniform_depth(obj: Any) -> int:
     depth = 0
     while isinstance(obj, list):
         depth += 1
-        # stop if we hit an empty list
-        if not obj:
+        if not obj:  # empty list
             break
         # Check if all subelements are lists, then peel away list layer by
         # flattening them all
         if all(isinstance(sub, list) for sub in obj):
             obj = [item for sub in obj for item in sub]
-        # If that's not the case, we stop
         else:
             break
     return depth
-
-
-def extract_key(d, key, default_value):
-    """
-    Extract a key from a dictionary and return the value along with a new
-    dictionary with the key removed.
-
-    Args:
-        d: dict: Dictionary to extract key from.
-        key: Any: Key to extract from dictionary.
-        default_value: Any: Default value to return if key is not found.
-
-    Returns:
-        Tuple[dict, Any]: Tuple containing a new dictionary with the key removed
-            and the value of the extracted key (or the default value if the key
-            was not found).
-    """
-    value = d.get(key, default_value)
-    new_dict = {k: v for k, v in d.items() if k != key}
-    return new_dict, value

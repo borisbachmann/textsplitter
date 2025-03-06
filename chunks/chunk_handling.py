@@ -16,7 +16,7 @@ from ..constants import (TEXT_COL, CHUNK_COL, CHUNKS_COL, CHUNK_N_COL,
                          DEFAULT_RESOLUTION, CHUNK_SPAN_COL)
 #from ..embeddings import create_embeddings
 #from ..sentences.sent_handling import make_sentences_from_text
-from ..utils import column_list, increment_ids, add_id, find_substring_indices, extract_key
+from ..utils import column_list, increment_ids, add_id, find_substring_indices
 
 # Enable progress bars for dataframe .map and .apply methods
 tqdm.pandas()

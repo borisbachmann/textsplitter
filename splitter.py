@@ -2,18 +2,15 @@ from typing import Optional, Union
 
 import pandas as pd
 import spacy
-from sentence_transformers import SentenceTransformer
 
 from tqdm.auto import tqdm
 
-from .embeddings import EmbeddingModel
-from .constants import TEXT_COL, DEFAULT_STRATEGY, STANDARD_PARA_SPECS
-from .chunks.chunk_handling import (chunk_text, split_chunks,
-                                    chunk_multiple_texts, chunk_text_series, ChunkModule, DummyChunkModule)
-from .paragraphs.para_handling import (make_paragraphs_from_text,
-                                       split_paragraphs, initiate_paragrapher, ParagraphModule)
-from .sentences.sent_handling import make_sentences_from_text, split_sentences, SentenceModule
+from .constants import TEXT_COL
+from .chunks.chunk_handling import ChunkModule, DummyChunkModule
+from .paragraphs.para_handling import ParagraphModule
+from .sentences.sent_handling import SentenceModule
 
+# register pandas
 tqdm.pandas()
 
 
