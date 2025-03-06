@@ -16,7 +16,7 @@ from ..constants import (TEXT_COL, CHUNK_COL, CHUNKS_COL, CHUNK_N_COL,
                          DEFAULT_RESOLUTION, CHUNK_SPAN_COL)
 #from ..embeddings import create_embeddings
 #from ..sentences.sent_handling import make_sentences_from_text
-from ..utils import column_list, increment_ids, add_id, find_substring_indices
+from ..utils import column_list, increment_ids, add_id, find_substring_indices, extract_key
 
 # Enable progress bars for dataframe .map and .apply methods
 tqdm.pandas()
@@ -99,32 +99,41 @@ class ChunkModule:
               text: str,
               as_tuples: bool = False,
               include_span: bool = False,
+              **chunker_kwargs
               ) -> list:
         """Split a string containing natural language data into chunks. Returns
         a list of chunks as strings. Optionally, return a list of tuples also
         including chunk index and/or start and end indices of chunks in the
         original text."""
-
         if include_span:
-            chunks = self.chunker.split(text, compile=False, postprocess=False)
+            ensure_separators = chunker_kwargs.pop("ensure_separators", False)
+            chunks = self.chunker.split(text,
+                                        compile=False,
+                                        postprocess=False,
+                                        **chunker_kwargs)
             indices = [make_indices_from_chunk(c, text) for c in chunks]
-            chunks = self.chunker._compile_chunks(chunks)
+            chunks = self.chunker._compile_chunks(chunks, ensure_separators)
             chunks = self.chunker._postprocess(chunks)
             chunks = list(zip(indices, chunks))
         else:
-            chunks = self.chunker.split(text, compile=True, postprocess=True)
+            chunks = self.chunker.split(text,
+                                        compile=True,
+                                        postprocess=True,
+                                        **chunker_kwargs)
 
         if as_tuples:
             chunks = add_id(chunks)
 
         return chunks
 
+
     def chunk_df(self,
                 input_df: pd.DataFrame,
                 column: str = TEXT_COL,
                 drop_text: bool = True,
                 mathematical_ids: bool = False,
-                include_span: bool = False
+                include_span: bool = False,
+                **chunker_kwargs
                 ) -> pd.DataFrame:
         """
         Split texts in a pandas DataFrame column into chunks. Returns a df
@@ -150,7 +159,8 @@ class ChunkModule:
         df[CHUNKS_COL] = df[column].progress_apply(
             lambda x: self.chunk(x,
                                  as_tuples=True,
-                                 include_span=include_span
+                                 include_span=include_span,
+                                 **chunker_kwargs
                                  )
         )
         tqdm.pandas(desc="")  # reset progress bar description

@@ -1,3 +1,4 @@
+import re
 from typing import Union, List, Protocol, Optional, Dict, Any
 
 from sentence_transformers import SentenceTransformer
@@ -71,11 +72,14 @@ class Chunker:
               postprocess: bool = True,
               **chunker_kwargs
               ) -> Union[List[List[str]], List[str]]:
+
+        ensure_separators = chunker_kwargs.pop("ensure_separators", False)
+
         if isinstance(data, str):
             # wrap to ensure that the segmenter receives a list
             chunks = self._split([data], **chunker_kwargs)
             if compile:
-                chunks = self._compile_chunks(chunks)
+                chunks = self._compile_chunks(chunks, ensure_separators)
             if postprocess:
                 chunks = self._postprocess(chunks)
             # unwrap to return a single list
@@ -88,7 +92,7 @@ class Chunker:
                                      **chunker_kwargs)
                 chunks = self._postprocess(chunks)
                 if compile:
-                    chunks = self._compile_chunks(chunks)
+                    chunks = self._compile_chunks(chunks, ensure_separators)
                 if postprocess:
                     chunks = self._postprocess(chunks)
                 return chunks
@@ -144,12 +148,14 @@ class Chunker:
             return [[[s.strip() for s in chunk if s.strip()] for chunk in chunk_list]
                     for chunk_list in chunks]
 
-    def _compile_chunks(self, chunks):
+    def _compile_chunks(self, chunks, ensure_separators):
         depth = uniform_depth(chunks)
         if depth == 2:
-            return [make_text_from_chunk(c) for c in chunks]
+            return [make_text_from_chunk(c, ensure_separators=ensure_separators)
+                    for c in chunks]
         if depth == 3:
-            return [[make_text_from_chunk(c) for c in chunk_list]
+            return [[make_text_from_chunk(c, ensure_separators=ensure_separators)
+                     for c in chunk_list]
                     for chunk_list in chunks]
 
     def _calculate_length(self, sentence):
@@ -186,8 +192,17 @@ def load_model(model: Union[str, EmbeddingModel, SentenceTransformer]
                          "EmbeddingModel or SentenceTransformer.")
 
 def make_text_from_chunk(
-        chunk: list
+        chunk: list,
+        ensure_separators: Optional[bool] = False
         ) -> str:
     """Reconstruct text data from a chunk."""
+
+    def add_separator(text):
+        if not re.search(r'[.!?]["\']*$', text):
+            return text + "."
+        return text
+
     texts = [sent.strip() for sent in chunk]
+    if ensure_separators:
+        texts = [add_separator(text) for text in texts]
     return" ".join([text for text in texts])

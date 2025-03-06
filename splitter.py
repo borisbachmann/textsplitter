@@ -61,41 +61,38 @@ class TextSplitter:
             column: Optional[str] = TEXT_COL,
             as_tuples: Optional[bool] = None,
             include_span: Optional[bool] = False,
-            #paragraph_specs: Optional[dict] = None,
-            #sentence_specs: Optional[dict] = None,
-            #chunking_strategy: Optional[str] = None,
-            #chunking_specs: Optional[dict] = None,
             mathematical_ids: Optional[bool] = False,
             drop_text: Optional[bool] = True,
+            **chunker_kwargs
             ) -> Union[str, list, pd.Series, pd.DataFrame]:
 
         if isinstance(data, str):
-            #specs = self._compile_specs(as_tuples, include_span,
-            #                            #paragraph_specs, sentence_specs,
-            #                            chunking_strategy, chunking_specs)
             return self._split(data=data, mode=mode,
                                as_tuples=as_tuples,
-                               include_span=include_span
+                               include_span=include_span,
+                               **chunker_kwargs
                                )
         elif isinstance(data, list):
-            #specs = self._compile_specs(as_tuples, include_span,
-            #                            #paragraph_specs, sentence_specs,
-            #                            chunking_strategy, chunking_specs)
             return self._split_multiple(data=data, mode=mode,
                                         as_tuples=as_tuples,
                                         include_span=include_span,
+                                        **chunker_kwargs
                                         )
         elif isinstance(data, pd.Series):
-            #specs = self._compile_specs(as_tuples, include_span,
-            #                            #paragraph_specs, sentence_specs,
-            #                            chunking_strategy, chunking_specs)
-            return self._split_series(data=data, mode=mode)#, **specs)
+            return self._split_series(data=data, mode=mode,
+                                      as_tuples=as_tuples,
+                                      include_span=include_span,
+                                      **chunker_kwargs
+                                      )
         elif isinstance(data, pd.DataFrame):
-            #specs = self._compile_df_specs(as_tuples, include_span,
-            #                               #paragraph_specs, sentence_specs,
-            #                               chunking_strategy, chunking_specs,
-            #                               column, mathematical_ids, drop_text)
-            return self._split_df(data=data, mode=mode)#, **specs)
+            return self._split_df(data=data, mode=mode,
+                                  as_tuples=as_tuples,
+                                  include_span=include_span,
+                                  column=column,
+                                  mathematical_ids=mathematical_ids,
+                                  drop_text=drop_text,
+                                  **chunker_kwargs
+                                  )
         else:
             raise ValueError(f"Data type not supported. Provided data is of "
                              f"type {type(data)}, but must be str, list, "
@@ -118,9 +115,7 @@ class TextSplitter:
                mode: str,
                as_tuples: bool = False,
                include_span: bool = False,
-               #chunking_strategy: str,
-               #chunking_specs: dict,
-               #**kwargs
+               **chunker_kwargs
                ) -> list:
         if mode == "sentences":
             return self.sentencizer.split(text=data,
@@ -135,7 +130,8 @@ class TextSplitter:
         elif mode == "chunks":
             return self.chunker.chunk(text=data,
                                       as_tuples=as_tuples,
-                                      include_span=include_span
+                                      include_span=include_span,
+                                      **chunker_kwargs
                                       )
 
     def _split_multiple(self,
@@ -143,9 +139,7 @@ class TextSplitter:
                         mode: str,
                         as_tuples: bool = False,
                         include_span: bool = False,
-                        #chunking_strategy: str,
-                        #chunking_specs: dict,
-                        #**kwargs
+                        **chunker_kwargs
                         ) -> list:
         if mode == "sentences":
             return [self.sentencizer.split(text=text,
@@ -162,7 +156,8 @@ class TextSplitter:
         elif mode == "chunks":
             return [self.chunker.chunk(text=text,
                                         as_tuples=as_tuples,
-                                        include_span=include_span
+                                        include_span=include_span,
+                                        **chunker_kwargs
                                         )
                     for text in tqdm(data, desc="Chunking texts")]
 
@@ -171,8 +166,7 @@ class TextSplitter:
                       mode: str,
                       as_tuples: bool = False,
                       include_span: bool = False,
-                      #chunking_strategy: str,
-                      #chunking_specs: dict
+                      **chunker_kwargs
                       ) -> pd.Series:
         if mode in ["sentences"]:
             return data.progress_map(
@@ -196,6 +190,7 @@ class TextSplitter:
                 lambda text: self.chunker.chunk(text=text,
                                                 as_tuples=as_tuples,
                                                 include_span=include_span
+                                                             **chunker_kwargs
                                                 ),
                 desc="Chunking texts"
             )
@@ -205,11 +200,9 @@ class TextSplitter:
                   mode: str,
                   column: str = TEXT_COL,
                   include_span: bool = False,
-                  #chunking_strategy: str,
-                  #chunking_specs: dict,
                   drop_text: bool = True,
                   mathematical_ids: bool = False,
-                  #**kwargs
+                  **chunker_kwargs
                   ) -> pd.DataFrame:
 
         if mode == "sentences":
@@ -232,91 +225,9 @@ class TextSplitter:
                                         drop_text=drop_text,
                                         include_span=include_span,
                                         mathematical_ids=mathematical_ids,
+                                        **chunker_kwargs
                                        )
         return df
-
-    def _load_model(
-            self,
-            model: Union[str, EmbeddingModel, SentenceTransformer]
-            ) -> Union[EmbeddingModel, SentenceTransformer, str]:
-        if isinstance(model, str):
-            return EmbeddingModel(model)
-        elif (isinstance(model, EmbeddingModel) or
-              isinstance(model, SentenceTransformer)):
-            return model
-        else:
-            raise ValueError("Model must be a string or an instance of "
-                             "EmbeddingModel or SentenceTransformer.")
-
-    def _compile_specs(self,
-                       #drop_empty: bool,
-                       as_tuples: bool,
-                       include_span: bool,
-                       #paragraph_specs: dict,
-                       #sentence_specs: dict,
-                       chunking_strategy: str,
-                       chunking_specs: dict,
-                       ) -> dict:
-
-        return {
-            #"drop_empty": (drop_empty if drop_empty is not None
-            #               else self.drop_empty),
-            "as_tuples": (as_tuples if as_tuples is not None
-                          else self.as_tuples),
-            "include_span": (include_span if include_span is not None
-                             else self.include_span),
-            #"paragraph_specs": (paragraph_specs if paragraph_specs is not None
-            #                    else self.paragraph_specs),
-            #"sentence_specs": (sentence_specs if sentence_specs is not None
-            #                   else self.sentence_specs),
-            "chunking_strategy": (chunking_strategy
-                                  if chunking_strategy is not None
-                                  else self.chunking_strategy),
-            "chunking_specs": self._compile_chunking_specs(chunking_specs)
-        }
-
-    def _compile_df_specs(self,
-                          #drop_empty: bool,
-                          as_tuples: bool,
-                          include_span: bool,
-                          #paragraph_specs: dict,
-                          #sentence_specs: dict,
-                          chunking_strategy: str,
-                          chunking_specs: dict,
-                          column: str,
-                          mathematical_ids: bool,
-                          drop_text: bool
-                          ) -> dict:
-        base_specs = {
-            k: v for k, v in self._compile_specs(#drop_empty,
-                                                 as_tuples,
-                                                 include_span,
-                                                 #paragraph_specs,
-                                                 #sentence_specs,
-                                                 chunking_strategy,
-                                                 chunking_specs).items()
-            if k != "as_tuples"
-        }
-        df_specs = {
-            "column": (column if column is not None else TEXT_COL),
-            "mathematical_ids": (mathematical_ids
-                                 if mathematical_ids is not None
-                                 else self.mathematical_ids),
-            "drop_text": (drop_text if drop_text is not None
-                          else self.drop_text)
-        }
-
-        return {**base_specs, **df_specs}
-
-    def _compile_chunking_specs(self, specs):
-        specs = specs or {}
-        if 'model' in specs:
-            specs['model'] = self._load_model(specs['model'])
-        if self.chunking_specs is not None:
-            for k, v in self.chunking_specs.items():
-                if k not in specs:
-                    specs[k] = v
-        return specs
 
 if __name__ == "__main__":
     filename = "/Users/borisbachmann/sciebo/Forschung_cloud/5_Projekte/3_VW/3_WP 3/Quellen sortiert/2_Korpus/2020-11-30_707.txt"
