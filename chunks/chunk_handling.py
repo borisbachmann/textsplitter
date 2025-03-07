@@ -169,7 +169,6 @@ class ChunkSegmenter:
         Returns:
             pd.DataFrame: DataFrame with chunks as rows
         """
-
         df = input_df.copy()
 
         df[CHUNKS_COL] = pd.Series(self.split_list(df[column].tolist(),
@@ -202,6 +201,7 @@ class ChunkSegmenter:
 
         return df[columns]
 
+
 class DummyChunkSegmenter:
     def __init__(self):
         pass
@@ -219,6 +219,24 @@ class DummyChunkSegmenter:
 
         if as_tuples:
             chunks = add_id(chunks)
+
+        return chunks
+
+    def split_list(self,
+                   texts: list,
+                   as_tuples: bool = False,
+                   include_span: bool = False
+                   ) -> list:
+        chunks = [[t] for t in texts]
+
+        if include_span:
+            indices = [[(0, len(t)) for t in text_list]
+                      for text_list in texts]
+            chunks = [list(zip(index_list, chunk_list))
+                     for index_list, chunk_list in zip(indices, chunks)]
+
+        if as_tuples:
+            chunks = [add_id(chunk_list) for chunk_list in chunks]
 
         return chunks
 

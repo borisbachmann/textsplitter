@@ -18,274 +18,155 @@ class ParagraphSegmenter:
     def __init__(self, specs):
         if specs is None:
             specs = {}
-        self.splitter = initiate_paragrapher(specs.get("paragrapher",
-                                                       "clean")
-                                             )
+        self.splitter = self._initialize_splitter(
+            specs.get("paragrapher", "clean"))
         self.drop_placeholders = specs.get("drop_placeholders", [])
 
-    def split(self,
-              text: str,
-              as_tuples: bool = False,
-              include_span: bool = False,
-              **kwargs
-              ) -> list:
-            """Split a string containing natural language data into paragraphs. Returns
-            a list of paragraphs. Optionally, return a list of tuples with paragraph
-            ids and data.
+    def _initialize_splitter(self, specs):
+        if (isinstance(specs, str)
+                or callable(specs)
+        ):
+            return Paragrapher(specs)
+        elif isinstance(specs, tuple):
+            return Paragrapher(*specs)
+        else:
+            raise ValueError("Paragrapher must be either a built-in type "
+                             "(specified by string or tuple of string and "
+                             "specs) or a custom callable.")
 
-            Paragraphs are split based on a function passed as an argument. If no
-            function is provided, a standard function will be selected under the hood.
-            """
-            if "drop_placeholders" in kwargs:
-                drop_placeholders = kwargs.pop("drop_placeholders")
-            else:
-                drop_placeholders = []
-
-
-            paragraphs = self.splitter.split(text, **kwargs)
-
-            if drop_placeholders:
-                paragraphs = clean_placeholders(
-                    paragraphs, placeholders=drop_placeholders
-                    )
-
-            if include_span:
-                indices = [make_indices_from_paragraph(p, text)
-                           for p in paragraphs]
-                paragraphs = list(zip(indices, paragraphs))
-
-            if as_tuples:
-                paragraphs = add_id(paragraphs)
-
-            return paragraphs
-
-    def split_list(self,
-                   texts: list,
-                   as_tuples: bool = False,
-                   include_span: bool = False,
-                   **kwargs
-                   ) -> list:
-            """
-            Split a list of strings containing natural language data into
-            paragraphs. Returns a list of ppragraphs per text as lists of
-            strings. Optionally, returns lists of tuples also including
-            paragraph index and/or start and end indices of paragraphs in the
-            original text.
-
-            Args:
-                texts: list: List of strings to split into paragraphs.
-                as_tuples: bool: Return paragraphs as tuples if True.
-                include_span: bool: Include span information in output if True.
-
-            Returns:
-                list: List of paragraphs per text as list of strings or tuples
-                with paragraph ids and data.
-            """
-
-            drop_placeholders = kwargs.pop("drop_placeholders", [])
-            show_progress = kwargs.get("show_progress", False)
-
-            paragraphs = self.splitter.split(texts, **kwargs)
-
-            if drop_placeholders:
-                paragraphs = [
-                    clean_placeholders(para_list,
-                                       placeholders=drop_placeholders)
-                     for para_list in paragraphs
-                    ]
-
-            if include_span:
-                if show_progress:
-                    iterator = tqdm(zip(paragraphs, texts),
-                                    desc="Adding span indices",
-                                    total=len(texts))
-                else:
-                    iterator = zip(paragraphs, texts)
-                paragraphs = [list(zip([make_indices_from_paragraph(p, text)
-                                        for p in para_list], para_list))
-                              for para_list, text in iterator]
-
-            if as_tuples:
-                paragraphs = [add_id(para_list) for para_list in paragraphs]
-
-            return paragraphs
-
-    def split_df(
+    def split(
             self,
-            input_df: pd.DataFrame,
-            column: str = TEXT_COL,
-            drop_text: bool = True,
-            mathematical_ids: bool = False,
+            text: str,
+            as_tuples: bool = False,
             include_span: bool = False,
             **kwargs
-            ) -> pd.DataFrame:
-            """
-            In a pandas dataframe containing a column with data data, insert three
-            new columns with individual paragraphs derived from data data, number of
-            paragraphs per data, and paragraph IDs. DataFrame is exploded to one row
-            per paragraph, keeping paragraphs together with original data data.
-            Optionally, drop the original data column.
+            ) -> list:
+        """Split a string containing natural language data into paragraphs.
+        Returns a list of paragraphs. Optionally, return a list of tuples with
+        paragraph ids and data.
 
-            Paragraphs are split based on a function passed as an argument. If no
-            function is provided, a standard function will be selected under the hood.
-            """
-            df = input_df.copy()
+        Paragraphs are split based on a function passed as an argument. If no
+        function is provided, a standard function will be selected under the
+        hood.
+        """
+        drop_placeholders = kwargs.pop("drop_placeholders", [])
 
-            df[PARAS_COL] = pd.Series(self.split_list(df[column].tolist(),
-                                                      as_tuples=True,
-                                                      include_span=include_span,
-                                                      **kwargs
-                                                      )
-                                      )
+        paragraphs = self.splitter.split(text, **kwargs)
 
-            df = df.explode(PARAS_COL).reset_index(drop=True)
+        if drop_placeholders:
+            paragraphs = clean_placeholders(
+                paragraphs, placeholders=drop_placeholders
+                )
 
-            # unpack paragraph data into separate columns
-            paras_df = pd.DataFrame(df[PARAS_COL].tolist())
-            if include_span:
-                df[[PARA_ID_COL, PARA_SPAN_COL, PARA_COL]] = paras_df
+        if include_span:
+            indices = [make_indices_from_paragraph(p, text)
+                       for p in paragraphs]
+            paragraphs = list(zip(indices, paragraphs))
+
+        if as_tuples:
+            paragraphs = add_id(paragraphs)
+
+        return paragraphs
+
+    def split_list(
+            self,
+            texts: list,
+            as_tuples: bool = False,
+            include_span: bool = False,
+            **kwargs
+            ) -> list:
+        """
+        Split a list of strings containing natural language data into
+        paragraphs. Returns a list of ppragraphs per text as lists of strings.
+        Optionally, returns lists of tuples also including paragraph index
+        and/or start and end indices of paragraphs in the original text.
+
+        Args:
+            texts: list: List of strings to split into paragraphs.
+            as_tuples: bool: Return paragraphs as tuples if True.
+            include_span: bool: Include span information in output if True.
+
+        Returns:
+            list: List of paragraphs per text as list of strings or tuples
+            with paragraph ids and data.
+        """
+
+        drop_placeholders = kwargs.pop("drop_placeholders", [])
+        show_progress = kwargs.get("show_progress", False)
+
+        paragraphs = self.splitter.split(texts, **kwargs)
+
+        if drop_placeholders:
+            paragraphs = [
+                clean_placeholders(para_list,
+                                   placeholders=drop_placeholders)
+                 for para_list in paragraphs
+                ]
+
+        if include_span:
+            if show_progress:
+                iterator = tqdm(zip(paragraphs, texts),
+                                desc="Adding span indices",
+                                total=len(texts))
             else:
-                df[[PARA_ID_COL, PARA_COL]] = paras_df
+                iterator = zip(paragraphs, texts)
 
-            # count paragraphs per text
-            df[PARA_N_COL] = (df.groupby(column)[column].transform("size"))
+            paragraphs = [list(zip([make_indices_from_paragraph(p, text)
+                                    for p in para_list], para_list))
+                          for para_list, text in iterator]
 
-            if mathematical_ids:
-                df[PARA_ID_COL] = df[PARA_ID_COL].map(lambda x: x + 1)
+        if as_tuples:
+            paragraphs = [add_id(para_list) for para_list in paragraphs]
 
-            # keep only desired columns for output dataframe
-            columns = [c for c in column_list(PARA_COL, column) if c in df.columns]
+        return paragraphs
 
-            if drop_text:
-                columns.remove(column)
-
-            return df[columns]
-
-
-
-
-def split_paragraphs(
+    def split_df(
+        self,
         input_df: pd.DataFrame,
         column: str = TEXT_COL,
-        paragraph_specs: dict = None,
         drop_text: bool = True,
         mathematical_ids: bool = False,
-        include_span: bool = False
+        include_span: bool = False,
+        **kwargs
         ) -> pd.DataFrame:
-    """
-    In a pandas dataframe containing a column with data data, insert three
-    new columns with individual paragraphs derived from data data, number of
-    paragraphs per data, and paragraph IDs. DataFrame is exploded to one row
-    per paragraph, keeping paragraphs together with original data data.
-    Optionally, drop the original data column.
+        """
+        In a pandas dataframe containing a column with data data, insert three
+        new columns with individual paragraphs derived from data data, number of
+        paragraphs per data, and paragraph IDs. DataFrame is exploded to one row
+        per paragraph, keeping paragraphs together with original data data.
+        Optionally, drop the original data column.
 
-    Paragraphs are split based on a function passed as an argument. If no
-    function is provided, a standard function will be selected under the hood.
-    """
-    df = input_df.copy()
-    df[PARAS_COL] = find_paragraphs(dataframe=df,
-                                    column=column,
-                                    paragraph_specs=paragraph_specs,
-                                    mathematical_ids=mathematical_ids,
-                                    include_span=include_span
-                                    )
-    df = df.explode(PARAS_COL)
-    df = df.reset_index(drop=True)
-    print("Here")
+        Paragraphs are split based on a function passed as an argument. If no
+        function is provided, a standard function will be selected under the hood.
+        """
+        df = input_df.copy()
 
-    # unpack sentence data into separate columns
-    paras_df = pd.DataFrame(df[PARAS_COL].tolist())
-    if include_span:
-        df[[PARA_ID_COL, PARA_SPAN_COL, PARA_COL]] = paras_df
-    else:
-        print(paras_df.info())
-        df[[PARA_ID_COL, PARA_COL]] = paras_df
+        df[PARAS_COL] = pd.Series(self.split_list(df[column].tolist(),
+                                                  as_tuples=True,
+                                                  include_span=include_span,
+                                                  **kwargs
+                                                  )
+                                  )
 
-    # keep only desired columns for output dataframe
-    columns = [c for c in column_list(PARA_COL, column) if c in df.columns]
+        df = df.explode(PARAS_COL).reset_index(drop=True)
 
-    if drop_text:
-        columns.remove(TEXT_COL)
+        # unpack paragraph data into separate columns
+        paras_df = pd.DataFrame(df[PARAS_COL].tolist())
+        if include_span:
+            df[[PARA_ID_COL, PARA_SPAN_COL, PARA_COL]] = paras_df
+        else:
+            df[[PARA_ID_COL, PARA_COL]] = paras_df
 
-    return df[columns]
+        # count paragraphs per text
+        df[PARA_N_COL] = (df.groupby(column)[column].transform("size"))
 
-def find_paragraphs(
-        dataframe: pd.DataFrame,
-        column: str = TEXT_COL,
-        paragraph_specs: dict = None,
-        mathematical_ids: bool = False,
-        include_span: bool = False
-        ) -> pd.DataFrame:
-    """
-    Create new columns with data split into paragraphs and no of paragraphs
-    Split data into paragraphs based on simple heuristic ( ?, !, ., ), " and “
-    at end of paragraph.
+        if mathematical_ids:
+            df[PARA_ID_COL] = df[PARA_ID_COL].map(lambda x: x + 1)
 
-    Paragraphs are split based on a function passed as an argument. If no
-    function is provided, a standard function will be selected under the hood.
-    """
-    paragraphs = dataframe[column].progress_map(
-       lambda text: make_paragraphs_from_text(text=text,
-                                              paragraph_specs=paragraph_specs,
-                                              as_tuples=True,
-                                              include_span=include_span
-                                              )
-    )
+        # keep only desired columns for output dataframe
+        columns = [c for c in column_list(PARA_COL, column) if c in df.columns]
 
-    if mathematical_ids:
-        paragraphs = paragraphs.map(lambda cell: increment_ids(cell, 1))
+        if drop_text:
+            columns.remove(column)
 
-    dataframe[PARAS_COL] = paragraphs
-    dataframe[PARA_N_COL] = dataframe[PARAS_COL].map(len)
-
-    return dataframe[[PARAS_COL, PARA_N_COL]]
-
-# Main paragraph splitting function
-
-def make_paragraphs_from_text(
-        text: str,
-        paragraph_specs: (Dict[str, Any]) = None,
-        as_tuples: bool = False,
-        include_span: bool = False
-        ) -> list:
-    """Split a string containing natural language data into paragraphs. Returns
-    a list of paragraphs. Optionally, return a list of tuples with paragraph
-    ids and data.
-
-    Paragraphs are split based on a function passed as an argument. If no
-    function is provided, a standard function will be selected under the hood.
-    """
-    if paragraph_specs is None:
-        paragraph_specs = {}
-
-    paragrapher_specs = paragraph_specs.get("paragrapher", "clean")
-    drop_placeholders = paragraph_specs.get("drop_placeholders", [])
-
-    paragrapher = initiate_paragrapher(paragrapher_specs)
-
-    paragraphs = paragrapher.split(text)
-
-    if drop_placeholders:
-        paragraphs = clean_placeholders(paragraphs,
-                                        placeholders=drop_placeholders)
-
-    if include_span:
-        indices = find_substring_indices(text, paragraphs)
-        paragraphs = list(zip(indices, paragraphs))
-
-    if as_tuples:
-        paragraphs = add_id(paragraphs)
-
-    return paragraphs
-
-def initiate_paragrapher(specs):
-    if (isinstance(specs, str)
-        or callable(specs)
-    ):
-        return Paragrapher(specs)
-    elif isinstance(specs, tuple):
-        return Paragrapher(*specs)
-    else:
-        raise ValueError("Paragrapher must be either a built-in type (specified "
-                         "by string or tuple of string and specs) or a custom "
-                         "callable.")
+        return df[columns]
