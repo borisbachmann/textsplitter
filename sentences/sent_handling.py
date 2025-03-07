@@ -8,7 +8,7 @@ from ..constants import (TEXT_COL, SENT_COL, SENTS_COL, SENT_N_COL, SENT_ID_COL,
 from ..paragraphs.para_handling import ParagraphSegmenter
 from .sentencizer import Sentencizer
 from ..paragraphs.paragrapher import Paragrapher
-from ..utils import column_list, increment_ids, add_id, find_substring_indices
+from ..utils import column_list, increment_ids, add_id, find_substring_indices, cast_to_df
 
 # Enable progress bars for dataframe .map and .apply methods
 tqdm.pandas()
@@ -149,34 +149,19 @@ class SentenceSegmenter:
         newlines, optionally a more complex pattern tailored to German data is
         employed.
         """
-        df = input_df.copy()
+        texts = input_df[column].tolist()
+        sentences = self.split_list(texts,
+                                    as_tuples=True,
+                                    include_span=include_span,
+                                    **kwargs
+                                    )
 
-        df[SENTS_COL] = pd.Series(self.split_list(df[column].tolist(),
-                                                  as_tuples=True,
-                                                  include_span=include_span,
-                                                  **kwargs
-                                                  )
-                                  )
-
-        df = df.explode(SENTS_COL).reset_index(drop=True)
-
-        # unpack sentence data into separate columns
-        sents_df = pd.DataFrame(df[SENTS_COL].tolist())
-        if include_span:
-            df[[SENT_ID_COL, SENT_SPAN_COL, SENT_COL]] = sents_df
-        else:
-            df[[SENT_ID_COL, SENT_COL]] = sents_df
-
-        # count sentences per text
-        df[SENT_N_COL] = df.groupby(column)[column].transform("size")
-
-        if mathematical_ids:
-            df[SENT_ID_COL] = df[SENT_ID_COL].map(lambda x: x + 1)
-
-        # keep only desired columns for output dataframe
-        columns = [c for c in column_list(SENT_COL, column) if c in df.columns]
-
-        if drop_text:
-            columns.remove(column)
-
-        return df[columns]
+        return cast_to_df(
+            input_df=input_df,
+            segments=sentences,
+            base_column=SENT_COL,
+            text_column=column,
+            drop_text=drop_text,
+            mathematical_ids=mathematical_ids,
+            include_span=include_span,
+        )

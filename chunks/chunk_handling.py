@@ -19,7 +19,7 @@ from .chunker import Chunker
 from .chunk_utils import make_indices_from_chunk
 from ..constants import (TEXT_COL, CHUNK_COL, CHUNKS_COL, CHUNK_N_COL,
                          CHUNK_ID_COL, CHUNK_SPAN_COL)
-from ..utils import column_list, add_id
+from ..utils import column_list, add_id, cast_to_df
 
 # Enable progress bars for dataframe .map and .apply methods
 tqdm.pandas()
@@ -169,37 +169,22 @@ class ChunkSegmenter:
         Returns:
             pd.DataFrame: DataFrame with chunks as rows
         """
-        df = input_df.copy()
+        texts = input_df[column].tolist()
+        chunks = self.split_list(texts,
+                                 as_tuples=True,
+                                 include_span=include_span,
+                                 **kwargs
+                                 )
 
-        df[CHUNKS_COL] = pd.Series(self.split_list(df[column].tolist(),
-                                                   as_tuples=True,
-                                                   include_span=include_span,
-                                                   **kwargs
-                                                   )
-                                   )
-
-        df = df.explode(CHUNKS_COL).reset_index(drop=True)
-
-        # uunpack chunk data into separate columns
-        chunks_df = pd.DataFrame(df[CHUNKS_COL].tolist())
-        if include_span:
-            df[[CHUNK_ID_COL, CHUNK_SPAN_COL, CHUNK_COL]] = chunks_df
-        else:
-            df[[CHUNK_ID_COL, CHUNK_COL]] = chunks_df
-
-        # count number of chunks in each text
-        df[CHUNK_N_COL] = df.groupby(column)[column].transform("size")
-
-        if mathematical_ids:
-            df[CHUNK_ID_COL] = df[CHUNK_ID_COL].map(lambda x: x + 1)
-
-        # keep only desired columns for output dataframe
-        columns = [c for c in column_list(CHUNK_COL, column) if c in df.columns]
-
-        if drop_text:
-            columns.remove(column)
-
-        return df[columns]
+        return cast_to_df(
+            input_df=input_df,
+            segments=chunks,
+            base_column=CHUNK_COL,
+            text_column=column,
+            drop_text=drop_text,
+            mathematical_ids=mathematical_ids,
+            include_span=include_span
+        )
 
 
 class DummyChunkSegmenter:
