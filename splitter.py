@@ -1,7 +1,20 @@
+"""
+This module contains the main class TextSplitter, which is a high-level wrapper
+class around different text-splitting techniques (sentences, paragraphs, and
+chunks) represented by corresponding module classes. It provides a unified
+interface that digests input data and distributes it to the underlying module
+methods. When initialized, it takes specs for each segment type and creates
+instances of the corresponding module classes accordingly.
+
+Currently, three types of segmenters are supported:
+- Sentences: handled internally by a SentenceModule instance
+- Paragraphs: handled internally by a ParagraphModule instance
+- Chunks: handled internally by a ChunkModule instance
+"""
+
 from typing import Optional, Union
 
 import pandas as pd
-import spacy
 
 from tqdm.auto import tqdm
 
@@ -13,22 +26,24 @@ from .sentences.sent_handling import SentenceModule
 # register pandas
 tqdm.pandas()
 
-
 class TextSplitter:
+    """
+    Class to split text into sentences, paragraphs, and chunks. TextSplitter
+    processes text data in different formats and returns the split text in a
+    corresponding format: Lists for strings and lists of strings, pandas Series
+    for pandas Series, and pandas DataFrames for pandas DataFrames.
+
+    A high-level wrapper class around different text-splitting techniques
+    (sentences, paragraphs, and chunks). This class can be initialized with
+    specifications for each segment type and provides a unified interface to
+    the underlying module classes.
+    """
     def __init__(
             self,
-            as_tuples: Optional[bool] = False,
-            include_span: Optional[bool] = False,
             sentence_specs: Optional[dict] = None,
             paragraph_specs: Optional[dict] = None,
             chunking_specs: Optional[dict] = None,
-            mathematical_ids: Optional[bool] = False,
-            drop_text: Optional[bool] = True,
             ):
-        self.sentence_specs = sentence_specs
-        self.as_tuples = as_tuples
-        self.include_span = include_span
-
         # iniitiate paragraphing attributes
         self.paragrapher = ParagraphModule(paragraph_specs)
 
@@ -48,9 +63,7 @@ class TextSplitter:
                 self.chunker = ChunkModule(chunking_specs, paragraph_specs,
                                            sentence_specs)
 
-        self.mathematical_ids = mathematical_ids
-        self.drop_text = drop_text
-
+    # present for backwards compatibility. Use explicit methods instead.
     def __call__(
             self,
             data: Union[str, list, pd.Series, pd.DataFrame],
@@ -60,193 +73,105 @@ class TextSplitter:
             include_span: Optional[bool] = False,
             mathematical_ids: Optional[bool] = False,
             drop_text: Optional[bool] = True,
-            **chunker_kwargs
+            **kwargs
             ) -> Union[str, list, pd.Series, pd.DataFrame]:
+        return self._process_data(data=data, mode=mode, column=column,
+                                  as_tuples=as_tuples, include_span=include_span,
+                                  mathematical_ids=mathematical_ids,
+                                  drop_text=drop_text, **kwargs)
+
+    def sentences(self,
+                  data: Union[str, list, pd.Series, pd.DataFrame],
+                  column: Optional[str] = TEXT_COL,
+                  as_tuples: Optional[bool] = False,
+                  include_span: Optional[bool] = False,
+                  mathematical_ids: Optional[bool] = False,
+                  drop_text: Optional[bool] = True,
+                  **kwargs
+                  ) -> Union[str, list, pd.Series, pd.DataFrame]:
+        return self._process_data(data=data, mode="sentences", column=column,
+                                  as_tuples=as_tuples, include_span=include_span,
+                                  mathematical_ids=mathematical_ids,
+                                  drop_text=drop_text, **kwargs)
+
+    def paragraphs(self,
+                   data: Union[str, list, pd.Series, pd.DataFrame],
+                   column: Optional[str] = TEXT_COL,
+                   as_tuples: Optional[bool] = False,
+                   include_span: Optional[bool] = False,
+                   mathematical_ids: Optional[bool] = False,
+                   drop_text: Optional[bool] = True,
+                   **kwargs
+                   ) -> Union[str, list, pd.Series, pd.DataFrame]:
+        return self._process_data(data=data, mode="paragraphs", column=column,
+                                  as_tuples=as_tuples, include_span=include_span,
+                                  mathematical_ids=mathematical_ids,
+                                  drop_text=drop_text, **kwargs)
+
+    def chunks(self,
+               data: Union[str, list, pd.Series, pd.DataFrame],
+               column: Optional[str] = TEXT_COL,
+               as_tuples: Optional[bool] = False,
+               include_span: Optional[bool] = False,
+               mathematical_ids: Optional[bool] = False,
+               drop_text: Optional[bool] = True,
+               **kwargs
+               ) -> Union[str, list, pd.Series, pd.DataFrame]:
+        return self._process_data(data=data, mode="chunks", column=column,
+                                  as_tuples=as_tuples, include_span=include_span,
+                                  mathematical_ids=mathematical_ids,
+                                  drop_text=drop_text, **kwargs)
+
+    def _process_data(self,
+                      data: Union[str, list, pd.Series, pd.DataFrame],
+                      mode: str,
+                      column: Optional[str] = TEXT_COL,
+                      as_tuples: Optional[bool] = False,
+                      include_span: Optional[bool] = False,
+                      mathematical_ids: Optional[bool] = False,
+                      drop_text: Optional[bool] = True,
+                      **kwargs
+                      ) -> Union[list, pd.Series, pd.DataFrame]:
+        """Process data with the appropriate segmenter module based on mode."""
+        processors = {
+            "sentences": self.sentencizer,
+            "paragraphs": self.paragrapher,
+            "chunks": self.chunker
+        }
+
+        processor = processors.get(mode)
+        if processor is None:
+            raise ValueError(f"Unsupported mode {mode}. "
+                             f"Use on of {list[processors.keys()]}.")
 
         if isinstance(data, str):
-            return self._split(data=data, mode=mode,
-                               as_tuples=as_tuples,
-                               include_span=include_span,
-                               **chunker_kwargs
-                               )
+            return processor.split(text=data,
+                                   as_tuples=as_tuples,
+                                   include_span=include_span,
+                                   **kwargs
+                                   )
         elif isinstance(data, list):
-            return self._split_multiple(data=data, mode=mode,
+            return processor.split_list(texts=data,
                                         as_tuples=as_tuples,
                                         include_span=include_span,
-                                        **chunker_kwargs
+                                        **kwargs
                                         )
         elif isinstance(data, pd.Series):
-            return self._split_series(data=data, mode=mode,
-                                      as_tuples=as_tuples,
-                                      include_span=include_span,
-                                      **chunker_kwargs
-                                      )
+            return pd.Series(processor.split_list(texts=data.tolist(),
+                                                  as_tuples=as_tuples,
+                                                  include_span=include_span,
+                                                  **kwargs
+                                                  )
+                             )
         elif isinstance(data, pd.DataFrame):
-            return self._split_df(data=data, mode=mode,
-                                  #as_tuples=as_tuples,
-                                  include_span=include_span,
-                                  column=column,
-                                  mathematical_ids=mathematical_ids,
-                                  drop_text=drop_text,
-                                  **chunker_kwargs
-                                  )
+            return processor.split_df(input_df=data,
+                                      column=column,
+                                      drop_text=drop_text,
+                                      include_span=include_span,
+                                      mathematical_ids=mathematical_ids,
+                                      **kwargs
+                                      )
         else:
             raise ValueError(f"Data type not supported. Provided data is of "
-                             f"type {type(data)}, but must be str, list, "
+                             f"type {type(data)}, but must be str, List[str], "
                              f"pd.Series or pd.DataFrame.")
-
-    def sentences(self, *args, **kwargs
-                  ) -> Union[str, list, pd.Series, pd.DataFrame]:
-        return self(mode="sentences", *args, **kwargs)
-
-    def paragraphs(self, *args, **kwargs
-                   ) -> Union[str, list, pd.Series, pd.DataFrame]:
-          return self(mode="paragraphs", *args, **kwargs)
-
-    def chunks(self, *args, **kwargs
-               ) -> Union[str, list, pd.Series, pd.DataFrame]:
-        return self(mode="chunks", *args, **kwargs)
-
-    def _split(self,
-               data: str,
-               mode: str,
-               as_tuples: bool = False,
-               include_span: bool = False,
-               **chunker_kwargs
-               ) -> list:
-        if mode == "sentences":
-            return self.sentencizer.split(text=data,
-                                          as_tuples=as_tuples,
-                                          include_span=include_span
-                                          )
-        elif mode == "paragraphs":
-            return self.paragrapher.split(text=data,
-                                          as_tuples=as_tuples,
-                                          include_span=include_span
-                                          )
-        elif mode == "chunks":
-            return self.chunker.chunk(text=data,
-                                      as_tuples=as_tuples,
-                                      include_span=include_span,
-                                      **chunker_kwargs
-                                      )
-
-    def _split_multiple(self,
-                        data: list,
-                        mode: str,
-                        as_tuples: bool = False,
-                        include_span: bool = False,
-                        **chunker_kwargs
-                        ) -> list:
-        if mode == "sentences":
-            return self.sentencizer.split_list(texts=data,
-                                                as_tuples=as_tuples,
-                                                include_span=include_span
-                                                )
-        elif mode == "paragraphs":
-            return self.paragrapher.split_list(texts=data,
-                                               as_tuples=as_tuples,
-                                               include_span=include_span
-                                               )
-        elif mode == "chunks":
-            return self.chunker.chunk_list(texts=data,
-                                           as_tuples=as_tuples,
-                                           include_span=include_span,
-                                           **chunker_kwargs
-                                           )
-
-    def _split_series(self,
-                      data: pd.Series,
-                      mode: str,
-                      as_tuples: bool = False,
-                      include_span: bool = False,
-                      **chunker_kwargs
-                      ) -> pd.Series:
-        if mode in ["sentences"]:
-            return pd.Series(
-                self.sentencizer.split_list(texts=data.tolist(),
-                                            as_tuples=as_tuples,
-                                            include_span=include_span
-                                            )
-            )
-
-        if mode == "paragraphs":
-            return pd.Series(
-                self.paragrapher.split_list(texts=data.tolist(),
-                                            as_tuples=as_tuples,
-                                            include_span=include_span
-                                            )
-            )
-
-        elif mode == "chunks":
-            return pd.Series(
-                self.chunker.chunk_list(texts=data.tolist(),
-                                        as_tuples=as_tuples,
-                                        include_span=include_span
-                                        )
-            )
-
-    def _split_df(self,
-                  data: pd.DataFrame,
-                  mode: str,
-                  column: str = TEXT_COL,
-                  include_span: bool = False,
-                  drop_text: bool = True,
-                  mathematical_ids: bool = False,
-                  **chunker_kwargs
-                  ) -> pd.DataFrame:
-
-        if mode == "sentences":
-            df= self.sentencizer.split_df(input_df=data,
-                                          column=column,
-                                          drop_text=drop_text,
-                                          include_span=include_span,
-                                          mathematical_ids=mathematical_ids
-                                          )
-        elif mode == "paragraphs":
-            df = self.paragrapher.split_df(input_df=data,
-                                           column=column,
-                                           drop_text=drop_text,
-                                           include_span=include_span,
-                                           mathematical_ids=mathematical_ids,
-                                           )
-        elif mode == "chunks":
-            df = self.chunker.chunk_df(input_df=data,
-                                        column=column,
-                                        drop_text=drop_text,
-                                        include_span=include_span,
-                                        mathematical_ids=mathematical_ids,
-                                        **chunker_kwargs
-                                       )
-        return df
-
-if __name__ == "__main__":
-    filename = "/Users/borisbachmann/sciebo/Forschung_cloud/5_Projekte/3_VW/3_WP 3/Quellen sortiert/2_Korpus/2020-11-30_707.txt"
-    filename_2 = "/Users/borisbachmann/sciebo/Forschung_cloud/5_Projekte/3_VW/3_WP 3/Quellen sortiert/2_Korpus/2021-MM-DD_810.txt"
-
-    with open(filename, "r") as file:
-        text_1 = file.read()
-    with open(filename_2, "r") as file:
-        text_2 = file.read()
-
-    nlp = spacy.load("de_core_news_sm")
-
-    splitter_specs = {"as_tuples": True,
-                      "paragraph_function": None,
-                      "chunking_strategy": "graph",
-                      "chunking_specs": {
-                          "model": "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"},
-                      }
-
-    print("Initializing spliiter")
-    splitter = TextSplitter(nlp, **splitter_specs)
-
-    print("Splitting text")
-    splitted_text = splitter(text_1, mode="chunks", as_tuples=True)
-    for element in splitted_text:
-        print(element)
-
-    print("Splitting list of texts")
-    texts = [text_1, text_2]
-    for list_ in splitter(texts, mode="chunks", as_tuples=True):
-        print(list_)

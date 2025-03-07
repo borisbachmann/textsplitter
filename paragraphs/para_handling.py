@@ -25,7 +25,8 @@ class ParagraphModule:
     def split(self,
               text: str,
               as_tuples: bool = False,
-              include_span: bool = False
+              include_span: bool = False,
+              **kwargs
               ) -> list:
             """Split a string containing natural language data into paragraphs. Returns
             a list of paragraphs. Optionally, return a list of tuples with paragraph
@@ -53,7 +54,8 @@ class ParagraphModule:
     def split_list(self,
                    texts: list,
                    as_tuples: bool = False,
-                   include_span: bool = False
+                   include_span: bool = False,
+                   **kwargs
                    ) -> list:
             """
             Split a list of strings containing natural language data into
@@ -96,7 +98,8 @@ class ParagraphModule:
             column: str = TEXT_COL,
             drop_text: bool = True,
             mathematical_ids: bool = False,
-            include_span: bool = False
+            include_span: bool = False,
+            **kwargs
             ) -> pd.DataFrame:
             """
             In a pandas dataframe containing a column with data data, insert three

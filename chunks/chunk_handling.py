@@ -99,7 +99,7 @@ class ChunkModule:
               text: str,
               as_tuples: bool = False,
               include_span: bool = False,
-              **chunker_kwargs
+              **kwargs
               ) -> list:
         """Split a string containing natural language data into chunks. Returns
         a list of chunks as strings. Optionally, return a list of tuples also
@@ -110,17 +110,17 @@ class ChunkModule:
             text: str: Text to split into chunks
             as_tuples: bool: Return chunks as tuples with index and text
             include_span: bool: Include start and end indices of chunks
-            chunker_kwargs: dict: Additional arguments for chunker
+            kwargs: dict: Additional arguments for chunker
 
         Returns:
             list: List of chunks as strings or tuples
         """
         if include_span:
-            ensure_separators = chunker_kwargs.pop("ensure_separators", False)
+            ensure_separators = kwargs.pop("ensure_separators", False)
             chunks = self.chunker.split(text,
                                         compile=False,
                                         postprocess=False,
-                                        **chunker_kwargs)
+                                        **kwargs)
             indices = [make_indices_from_chunk(c, text) for c in chunks]
             chunks = self.chunker._compile_chunks(chunks, ensure_separators)
             chunks = self.chunker._postprocess(chunks)
@@ -129,7 +129,7 @@ class ChunkModule:
             chunks = self.chunker.split(text,
                                         compile=True,
                                         postprocess=True,
-                                        **chunker_kwargs)
+                                        **kwargs)
 
         if as_tuples:
             chunks = add_id(chunks)
@@ -140,7 +140,7 @@ class ChunkModule:
                    texts: list,
                    as_tuples: bool = False,
                    include_span: bool = False,
-                   **chunker_kwargs
+                   **kwargs
                    ) -> list:
         """Split a list of strings containing natural language data into chunks.
         Returns a list of chunks per text as lists of strings. Optionally,
@@ -151,18 +151,18 @@ class ChunkModule:
             texts: list: List of texts to split into chunks
             as_tuples: bool: Return chunks as tuples with index and text
             include_span: bool: Include start and end indices of chunks
-            chunker_kwargs: dict: Additional arguments for chunker
+            kwargs: dict: Additional arguments for chunker
 
         Returns:
             list: List of chunks as lists strings or tuples
         """
         if include_span:
-            ensure_separators = chunker_kwargs.pop("ensure_separators", False)
+            ensure_separators = kwargs.pop("ensure_separators", False)
             chunks = self.chunker.split(texts,
                                         show_progress=True,
                                         compile=False,
                                         postprocess=False,
-                                        **chunker_kwargs)
+                                        **kwargs)
             indices = [[make_indices_from_chunk(c, text) for c in chunk_list]
                        for text, chunk_list in zip(texts, chunks)]
             chunks = self.chunker._compile_chunks(chunks, ensure_separators)
@@ -174,7 +174,7 @@ class ChunkModule:
                                         show_progress=True,
                                         compile=True,
                                         postprocess=True,
-                                        **chunker_kwargs)
+                                        **kwargs)
 
         if as_tuples:
             chunks = [add_id(chunk_list) for chunk_list in chunks]
@@ -187,7 +187,7 @@ class ChunkModule:
                 drop_text: bool = True,
                 mathematical_ids: bool = False,
                 include_span: bool = False,
-                **chunker_kwargs
+                **kwargs
                 ) -> pd.DataFrame:
         """
         Split texts in a pandas DataFrame column into chunks. Returns a df
@@ -202,6 +202,7 @@ class ChunkModule:
             drop_text: whether to drop the original data column
             mathematical_ids: whether to increment chunk IDs by 1 to avoid 0
             include_span: whether to include start and end indices of chunks
+            kwargs: dict: Additional arguments for chunker
 
         Returns:
             pd.DataFrame: DataFrame with chunks as rows
@@ -212,7 +213,7 @@ class ChunkModule:
         df[CHUNKS_COL] = pd.Series(self.chunk_list(df[column].tolist(),
                                                    as_tuples=True,
                                                    include_span=include_span,
-                                                   **chunker_kwargs
+                                                   **kwargs
                                                    )
                                    )
 

@@ -29,6 +29,7 @@ class SentenceModule:
               text: str,
               as_tuples: bool = False,
               include_span: bool = False,
+              **kwargs
               ) -> list:
         """Split a string containing natural language data into sentences. Returns
         a list of sentences as strings. Optionally, return a list of tuples with
@@ -57,7 +58,8 @@ class SentenceModule:
     def split_list(self,
                    texts: list,
                    as_tuples: bool = False,
-                   include_span: bool = False
+                   include_span: bool = False,
+                   **kwargs
                    ) -> list:
         """
         Split a list of strings containing natural language data into sentences.
@@ -88,7 +90,8 @@ class SentenceModule:
                  column: str = TEXT_COL,
                  drop_text: bool = True,
                  mathematical_ids: bool = False,
-                 include_span: bool = False
+                 include_span: bool = False,
+                 **kwargs
                  ) -> pd.DataFrame:
         """
         In a pandas dataframe containing a column with data data, insert three
