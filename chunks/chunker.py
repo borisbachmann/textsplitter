@@ -1,12 +1,13 @@
-import re
-from typing import Union, List, Protocol, Optional, Dict, Any
+from typing import Union, List, Protocol, Dict, Any
 
 from sentence_transformers import SentenceTransformer
 from tqdm.auto import tqdm
+from transformers.models.cvt.convert_cvt_original_pytorch_checkpoint_to_pytorch import embeddings
 
 from .chunk_backends import CHUNKER_MAP
+from .chunk_utils import make_text_from_chunk
 from ..embeddings import EmbeddingModel
-from ..sentences.sent_handling import SentenceModule
+from ..sentences.sent_handling import SentenceSegmenter
 from ..utils import uniform_depth
 
 
@@ -56,7 +57,7 @@ class Chunker:
                       "show_progress": False}
         para_specs = {"paragrapher": specs.get("paragrapher", "clean"),
                       "drop_placeholders": specs.get("drop_placeholders", [])}
-        self.sentencizer = SentenceModule(sent_specs, para_specs)
+        self.sentencizer = SentenceSegmenter(sent_specs, para_specs)
 
         # Load working parameters
         chunker = specs.get("chunker", "linear")
@@ -67,17 +68,17 @@ class Chunker:
 
     def split(self,
               data: Union[str, List[str]],
-              show_progress: bool = False,
               compile: bool = True,
               postprocess: bool = True,
-              **chunker_kwargs
+              **kwargs
               ) -> Union[List[List[str]], List[str]]:
 
-        ensure_separators = chunker_kwargs.pop("ensure_separators", False)
+        ensure_separators = kwargs.pop("ensure_separators", False)
+        show_progress = kwargs.pop("show_progress", False)
 
         if isinstance(data, str):
             # wrap to ensure that the segmenter receives a list
-            chunks = self._split([data], **chunker_kwargs)
+            chunks = self._split([data], **kwargs)
             if compile:
                 chunks = self._compile_chunks(chunks, ensure_separators)
             if postprocess:
@@ -89,7 +90,7 @@ class Chunker:
                 return []
             if all([isinstance(e, str) for e in data]):
                 chunks = self._split(data, show_progress,
-                                     **chunker_kwargs)
+                                     **kwargs)
                 chunks = self._postprocess(chunks)
                 if compile:
                     chunks = self._compile_chunks(chunks, ensure_separators)
@@ -101,38 +102,45 @@ class Chunker:
     def _split(self,
                data: List[str],
                show_progress: bool = False,
-               **chunker_kwargs
+               **kwargs
                ) -> List[List[str]]:
+        drop_placeholders = kwargs.pop("drop_placeholders", [])
+
+        sentences = self.sentencizer.split_list(
+            data, drop_placeholders=drop_placeholders,
+            show_progress=show_progress)
+        embeddings = self._create_embeddings(
+            sentences, show_progress=show_progress)
+
         if show_progress:
-            sentences = [self.sentencizer.split(t)
-                         for t in tqdm(data, desc="Splitting sentences")]
-            embeddings = [self._create_embeddings(s)
-                          for s in tqdm(sentences, desc="Creating embeddings")]
             chunks = [self._chunker(sentences=s,
                                     embeddings=e,
-                                    **chunker_kwargs)
+                                    **kwargs)
                       for s, e in tqdm(zip(sentences, embeddings),
-                                       desc="Chunking",
+                                       desc="Chunking sentences",
                                        total=len(sentences))
                       ]
         else:
-            sentences = [self.sentencizer.split(t) for t in data]
-            embeddings = [self._create_embeddings(s) for s in sentences]
             chunks = [self._chunker(sentences=s,
                                     embeddings=e,
-                                    **chunker_kwargs)
+                                    **kwargs)
                       for s, e in zip(sentences, embeddings)
                       ]
         return chunks
 
-    def _create_embeddings(self, sentence, show_progress=False):
-        return self.model.encode(sentence, show_progress_bar=show_progress)
+    def _create_embeddings(self, sentences, show_progress=False):
+        if show_progress:
+            iterator = tqdm(sentences, desc="Creating embeddings")
+        else:
+            iterator = sentences
+        return [self.model.encode(sent_list, show_progress_bar=False)
+                for sent_list in iterator]
 
     def _postprocess(self,
                      chunks: (Union[List[str], List[List[str]],
                               List[List[List[str]]]])
-                     ) -> (Union[List[str], List[List[str]],
-                           List[List[List[str]]]]):
+                     ) -> Union[List[str], List[List[str]],
+                                List[List[List[str]]]]:
         """
         Clear away irregularities in the sentence lists produced by different
         sentence segmenters. Removes leading and trailing whitespace and empty
@@ -162,8 +170,16 @@ class Chunker:
         tokens = self.tokenizer(sentence)
         return len(tokens["input_ids"])
 
-    def _load_model(self, model):
-        return load_model(model)
+    def _load_model(self, model: Union[str, EmbeddingModel, SentenceTransformer]
+                   ) -> Union[EmbeddingModel, SentenceTransformer, str]:
+        if isinstance(model, str):
+            return EmbeddingModel(model)
+        elif (isinstance(model, EmbeddingModel) or
+              isinstance(model, SentenceTransformer)):
+            return model
+        else:
+            raise ValueError("Model must be a string or an instance of "
+                             "EmbeddingModel or SentenceTransformer.")
 
     def _load_chunker(self,
                       chunker: Union[str, ChunkerProtocoll],
@@ -179,30 +195,3 @@ class Chunker:
         else:
             raise ValueError("Chunker must be a string or callable. Custom "
                              "callables must implement the ChunkerProtocoll.")
-
-def load_model(model: Union[str, EmbeddingModel, SentenceTransformer]
-               ) -> Union[EmbeddingModel, SentenceTransformer, str]:
-    if isinstance(model, str):
-        return EmbeddingModel(model)
-    elif (isinstance(model, EmbeddingModel) or
-          isinstance(model, SentenceTransformer)):
-        return model
-    else:
-        raise ValueError("Model must be a string or an instance of "
-                         "EmbeddingModel or SentenceTransformer.")
-
-def make_text_from_chunk(
-        chunk: list,
-        ensure_separators: Optional[bool] = False
-        ) -> str:
-    """Reconstruct text data from a chunk."""
-
-    def add_separator(text):
-        if not re.search(r'[.!?]["\']*$', text):
-            return text + "."
-        return text
-
-    texts = [sent.strip() for sent in chunk]
-    if ensure_separators:
-        texts = [add_separator(text) for text in texts]
-    return" ".join([text for text in texts])

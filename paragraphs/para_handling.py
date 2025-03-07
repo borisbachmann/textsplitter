@@ -3,6 +3,7 @@ from typing import Dict, Any
 import pandas as pd
 from tqdm.auto import tqdm
 
+from .para_utils import make_indices_from_paragraph
 from .paragrapher import Paragrapher
 from ..constants import (TEXT_COL, PARA_COL, PARAS_COL, PARA_N_COL, PARA_ID_COL,
                          PARA_SPAN_COL, STANDARD_PARA_SPECS)
@@ -13,7 +14,7 @@ from ..utils import (column_list, increment_ids, add_id, clean_placeholders,
 tqdm.pandas()
 
 
-class ParagraphModule:
+class ParagraphSegmenter:
     def __init__(self, specs):
         if specs is None:
             specs = {}
@@ -35,15 +36,22 @@ class ParagraphModule:
             Paragraphs are split based on a function passed as an argument. If no
             function is provided, a standard function will be selected under the hood.
             """
-            paragraphs = self.splitter.split(text)
+            if "drop_placeholders" in kwargs:
+                drop_placeholders = kwargs.pop("drop_placeholders")
+            else:
+                drop_placeholders = []
 
-            if self.drop_placeholders:
+
+            paragraphs = self.splitter.split(text, **kwargs)
+
+            if drop_placeholders:
                 paragraphs = clean_placeholders(
-                    paragraphs, placeholders=self.drop_placeholders
+                    paragraphs, placeholders=drop_placeholders
                     )
 
             if include_span:
-                indices = find_substring_indices(text, paragraphs)
+                indices = [make_indices_from_paragraph(p, text)
+                           for p in paragraphs]
                 paragraphs = list(zip(indices, paragraphs))
 
             if as_tuples:
@@ -73,19 +81,29 @@ class ParagraphModule:
                 list: List of paragraphs per text as list of strings or tuples
                 with paragraph ids and data.
             """
-            paragraphs = self.splitter.split(texts)
 
-            if self.drop_placeholders:
+            drop_placeholders = kwargs.pop("drop_placeholders", [])
+            show_progress = kwargs.get("show_progress", False)
+
+            paragraphs = self.splitter.split(texts, **kwargs)
+
+            if drop_placeholders:
                 paragraphs = [
                     clean_placeholders(para_list,
-                                       placeholders=self.drop_placeholders)
+                                       placeholders=drop_placeholders)
                      for para_list in paragraphs
                     ]
 
             if include_span:
-                paragraphs = [
-                    list(zip(find_substring_indices(text, para_list), para_list))
-                    for text, para_list in zip(texts, paragraphs)]
+                if show_progress:
+                    iterator = tqdm(zip(paragraphs, texts),
+                                    desc="Adding span indices",
+                                    total=len(texts))
+                else:
+                    iterator = zip(paragraphs, texts)
+                paragraphs = [list(zip([make_indices_from_paragraph(p, text)
+                                        for p in para_list], para_list))
+                              for para_list, text in iterator]
 
             if as_tuples:
                 paragraphs = [add_id(para_list) for para_list in paragraphs]
@@ -114,9 +132,10 @@ class ParagraphModule:
             df = input_df.copy()
 
             df[PARAS_COL] = pd.Series(self.split_list(df[column].tolist(),
-                                                 as_tuples=True,
-                                                 include_span=include_span
-                                                 )
+                                                      as_tuples=True,
+                                                      include_span=include_span,
+                                                      **kwargs
+                                                      )
                                       )
 
             df = df.explode(PARAS_COL).reset_index(drop=True)

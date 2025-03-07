@@ -12,7 +12,7 @@ def graph_chunking(
         embeddings: list,
         K: int = 5,
         resolution: float = 1.0,
-        model=None
+        random_state: int = 0
         ) -> list:
     """Chunking strategy that accounts for a lookbehind and lookahead of K
     embeddings to avoid splitting at single "filling" embeddings.
@@ -23,13 +23,13 @@ def graph_chunking(
     if len(sentences) == 1:
         return [sentences]
 
-    tiles = get_tiles(embeddings, K, resolution, model)
+    tiles = get_tiles(embeddings, K, resolution, random_state)
     chunks = [sentences[tile[0]:tile[-1]+1] for tile in tiles]
     return chunks
 
-def get_tiles(embeddings, K, resolution, model=None):
+def get_tiles(embeddings, K, resolution, random_state):
     # Create a similarity graph based on the extracted embeddings
-    graph = create_similarity_graph(embeddings, K, model=model)
+    graph = create_similarity_graph(embeddings, K)
 
     # Initialize a Graph object from Networkx
     G = nx.Graph()
@@ -38,7 +38,8 @@ def get_tiles(embeddings, K, resolution, model=None):
 
     # Partition the graph into communities using the Louvain method
     partition = community_louvain.best_partition(G, resolution=resolution,
-                                                 weight='weight', randomize=False)
+                                                 weight='weight', random_state=
+                                                 random_state)
 
     # Organize the embeddings into their respective communities (tiles)
     tiles = defaultdict(list)
@@ -60,12 +61,12 @@ def get_tiles(embeddings, K, resolution, model=None):
     return tiles
 
 # adopted from https://towardsdatascience.com/text-tiling-done-right-building-solid-foundations-for-your-personal-llm-e70947779ac1
-def create_similarity_graph(embeddings, K, model):
+def create_similarity_graph(embeddings, K):
     """
     This function creates a graph of sentence similarities given a list of
-    input embeddings. Each sentence is connected with the following K embeddings
-    in the list. The similarity between each pair of embeddings is calculated
-    using the provided model, and this similarity is then used to weight the
+    input embeddings corresponding to sentences. Each is connected with the
+    following K sentences' embeddings in the list. The similarity between
+    each pair of embeddings is calculated and then used to weight the
     edge between the embeddings in the graph.
 
     Parameters:
@@ -73,8 +74,6 @@ def create_similarity_graph(embeddings, K, model):
     is to be created.
     - K: an integer indicating the number of following embeddings to be
     considered for each sentence.
-    - model: a string indicating the model to be used for calculating sentence
-    similarity.
 
     Returns:
     - result: a list of weighted edges in the graph. Each edge is represented
@@ -97,7 +96,7 @@ def create_similarity_graph(embeddings, K, model):
 
     # Couples are split into two separate lists which are fed to the similarity function
     a, b = zip(*couples)
-    similarities = get_similarity_scores(a, b, model)
+    similarities = get_similarity_scores(a, b)
     # The similarity score for each pair of embeddings is incorporated into the edge weight.
     for i, s in enumerate(similarities):
         result[i][2] *= s
@@ -106,83 +105,27 @@ def create_similarity_graph(embeddings, K, model):
     return result
 
 # adopted from: https://towardsdatascience.com/text-tiling-done-right-building-solid-foundations-for-your-personal-llm-e70947779ac1
-def get_similarity_scores(vec_a, vec_b, model):
+def get_similarity_scores(emb_a, emb_b):
     """
-    This function calculates the similarity scores between pairs of text chunks
-    using the specified model. It supports several types of models, including
-    BERT, sequence matcher, Jaccard index, and transformers from HuggingFace.
+    This function calculates the similarity scores between pairs of sentence
+    embeddings.
 
     Parameters:
-    - vec_a, vec_b: Lists of text chunks to be compared. They must have the same
-      length, and the comparison is made between corresponding pairs (i.e.,
-      vec_a[i] is compared with vec_b[i]).
-    - model: A string indicating the type of model to be used for the
-      comparison. Current valid values are "bert", "seqmatch", "jaccard", and
-      the name of any transformer available from HuggingFace.
+    - emb_a, emb_b: Lists of embeddings. They must have the same  length, and
+      the comparison is made between corresponding pairs (i.e., emb_a[i] is
+      compared with emb_b[i]).
 
     Returns:
     - similarities: A list of similarity scores for each pair of text chunks.
       The score ranges from 0 (no similarity) to 1 (identical).
     """
-
-    # ORIGINAL IMPLEMENTATION OF MODELS COMMENTED OUT FOR THE TIME BEING
-    # vec_a = [x.lower() for x in vec_a]  # convert vector a to lowercase
-    # vec_b = [x.lower() for x in vec_b]  # convert vector b to lowercase
-    #
-    # if model == "bert":
-    #     # BERTScore returns three values: Precision, Recall, and F1 Score
-    #     # Here we use F1 Score as the similarity measure
-    #     _, _, f1_score = score(vec_a, vec_b, lang='en', model_type='bert-base-uncased')
-    #
-    #     # f1_score is a tensor with the F1 score for each pair of embeddings.
-    #     # Since we only have one pair, we take the first (and only) element.
-    #     similarities = [f1_score[i].item() for i in range(len(vec_a))]
-    # elif model == "seqmatch":
-    #     translation_table = str.maketrans('', '', string.punctuation)
-    #     similarities = []
-    #     for xa, xb in zip(vec_a, vec_b):
-    #         xa = xa.translate(translation_table)
-    #         xb = xb.translate(translation_table)
-    #         sm = SequenceMatcher(None, xa, xb).ratio()
-    #         similarities.append(sm)
-    # elif model == "jaccard":
-    #     translation_table = str.maketrans('', '', string.punctuation)
-    #     similarities = []
-    #     for xa, xb in zip(vec_a, vec_b):
-    #         a_words = set(xa.translate(translation_table).split())
-    #         b_words = set(xb.translate(translation_table).split())
-    #         js = len(a_words & b_words) / len(a_words | b_words)
-    #         similarities.append(js)
-    # else:
-    #     # any transformer chosen from HuggingFace can be used here
-    #     similarities = []
-    #     tokenizer = AutoTokenizer.from_pretrained("sentence-transformers/"+model)
-    #     model = AutoModel.from_pretrained("sentence-transformers/"+model)
-    #     embeddings_a = []
-    #     embeddings_b = []
-    #
-    #     # Compute embeddings for each string in the lists
-    #     for i in range(len(vec_a)):
-    #         a_tokens = tokenizer(vec_a[i], padding=True, truncation=True, max_length=256, return_tensors='pt')
-    #         b_tokens = tokenizer(vec_b[i], padding=True, truncation=True, max_length=256, return_tensors='pt')
-    #
-    #         with torch.no_grad():
-    #             embeddings_a.append(model(**a_tokens).last_hidden_state.mean(dim=1))
-    #             embeddings_b.append(model(**b_tokens).last_hidden_state.mean(dim=1))
-    #
-    #     # Compute cosine similarity for each pair of strings
-    #     similarities = []
-    #     for i in range(len(embeddings_a)):
-    #         similarity = 1 - cosine(embeddings_a[i][0], embeddings_b[i][0])
-    #         similarities.append(similarity)
-
     similarity_func = calculate_similarity
 
     similarities = []
-    for i in range(len(vec_a)):
+    for i in range(len(emb_a)):
         # since cosine distance 1 - cosine similarity, we can use the cosine
         # similarity directly
-        similarity = similarity_func(vec_a[i], vec_b[i])
+        similarity = similarity_func(emb_a[i], emb_b[i])
         sigmoid_similairty = sigmoid(similarity)  # apply sigmoid to force similarity between 0 and 1.
         similarities.append(sigmoid_similairty)
 

@@ -9,7 +9,6 @@ class SentSegmenterProtocol(Protocol):
 
     Args:
         data: List[str]: List of strings to split into sentences.
-        show_progress: bool: Show progress bar if True.
 
     Returns:
         List[List[str]]: List of lists of sentences as strings with one
@@ -17,7 +16,7 @@ class SentSegmenterProtocol(Protocol):
     """
     def __call__(self,
                  data: List[str],
-                 show_progress: bool=False
+                 **kwargs
                  ) -> List[List[str]]:
         ...
 
@@ -56,7 +55,7 @@ class Sentencizer:
 
     def split(self,
               data: Union[str, List[str]],
-              show_progress: bool = False
+              **kwargs
               ) -> Union[List[str], List[List[str]]]:
         """
         Split text into sentences. If data is a string, return a list of
@@ -75,8 +74,11 @@ class Sentencizer:
             input is a list of strings).
         """
         if isinstance(data, str):
+            # supress progress bar for single texts
+            if "show_progress" in kwargs:
+                kwargs.pop("show_progress")
             # wrap to ensure that the segmenter receives a list
-            sentences = self._segmenter([data])
+            sentences = self._segmenter([data], **kwargs)
             sentences = self._postprocess(sentences)
             # unwrap to return a single list
             return sentences[0]
@@ -84,7 +86,7 @@ class Sentencizer:
             if not data:
                 return []
             if all([isinstance(e, str) for e in data]):
-                sentences = self._segmenter(data, show_progress)
+                sentences = self._segmenter(data, **kwargs)
                 sentences = self._postprocess(sentences)
                 return sentences
         raise ValueError("Data must be either string or list of strings only.")

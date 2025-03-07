@@ -3,7 +3,7 @@ from typing import List
 from numpy._typing import NDArray
 from text_splitter.chunks.techniques.graph_chunking import graph_chunking
 from text_splitter.chunks.techniques.linear_chunking import linear_chunking
-from text_splitter.constants import DEFAULT_METRIC
+from text_splitter.constants import DEFAULT_METRIC, DEFAULT_RES_MULTIPLIER
 
 
 class LinearChunker:
@@ -101,9 +101,23 @@ class GraphChunker:
             List[List[str]]: List of chunks as lists of sentences within each
                 chunk.
         """
-        return graph_chunking(sentences=sentences,
-                              embeddings=embeddings,
-                              **kwargs)
+        goal_length = kwargs.pop("goal_length", None)
+        res_multiplier = kwargs.pop("res_multiplier", DEFAULT_RES_MULTIPLIER)
+
+        if goal_length is not None:
+            if isinstance(goal_length, int):
+                resolution = len(sentences) / (goal_length * res_multiplier)
+                return graph_chunking(sentences=sentences,
+                                      embeddings=embeddings,
+                                      resolution=resolution,
+                                      **kwargs)
+            else:
+                raise ValueError("Invalid goal length value. Please provide an "
+                                 "integer value or None.")
+        else:
+            return graph_chunking(sentences=sentences,
+                                  embeddings=embeddings,
+                                  **kwargs)
 
 # Mapping of paragraph segmenter names to segmenter classes
 # To extend the chunker with additional chunking techniques, add the new

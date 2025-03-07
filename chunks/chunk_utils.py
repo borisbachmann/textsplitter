@@ -1,4 +1,5 @@
-from typing import Union
+import re
+from typing import Union, Optional
 
 import math
 
@@ -8,6 +9,7 @@ from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
 from transformers import AutoTokenizer
 
+from text_splitter.utils import find_substring_indices
 from ..embeddings import EmbeddingModel
 
 
@@ -139,3 +141,29 @@ if __name__ == '__main__':
     sentence_1 = "Ich gehe nach Hause."
     sentence_2 = "Ich gehe heim."
     print("BERT similarity:", bert_similarity(sentence_1, sentence_2))
+
+
+def make_text_from_chunk(
+        chunk: list,
+        ensure_separators: Optional[bool] = False
+        ) -> str:
+    """Reconstruct text data from a chunk."""
+
+    def add_separator(text):
+        if not re.search(r'[.!?]["\']*$', text):
+            return text + "."
+        return text
+
+    texts = [sent.strip() for sent in chunk]
+    if ensure_separators:
+        texts = [add_separator(text) for text in texts]
+    return" ".join([text for text in texts])
+
+
+def make_indices_from_chunk(chunk, text):
+    """Reconstruct indices of chunk span in original text."""
+    start_sent = chunk[0]
+    end_sent = chunk[-1]
+    start_idx = find_substring_indices(text, [start_sent])[0][0]
+    end_idx = find_substring_indices(text, [end_sent])[0][1]
+    return start_idx, end_idx

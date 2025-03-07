@@ -21,7 +21,7 @@ class SpacySentencizer:
 
     def __call__(self,
                  data: List[str],
-                 show_progress: bool = False
+                 **kwargs
                  ) -> List[List[str]]:
         """
         Split a list of strings into a list of lists containing sentences as
@@ -35,6 +35,7 @@ class SpacySentencizer:
             List[List[str]]: List of lists of sentences as strings with one
                 list of sentences for each input string.
         """
+        show_progress = kwargs.get("show_progress", False)
         if show_progress:
             docs = self._nlp.pipe(tqdm(data, total=len(data)))
         else:
@@ -56,7 +57,7 @@ class SatSentencizer:
 
     def __call__(self,
                  data: List[str],
-                 show_progress: bool = False
+                 **kwargs
                  ) -> List[List[str]]:
         """
         Split a list of strings into a list of lists containing sentences as
@@ -70,6 +71,7 @@ class SatSentencizer:
             List[List[str]]: List of lists of sentences as strings with one
                 list of sentences for each input string.
         """
+        show_progress = kwargs.get("show_progress", False)
         if show_progress:
             sentences = list(tqdm(self._sat.split(data), total=len(data)))
         else:
@@ -89,7 +91,7 @@ class PysbdSentencizer:
 
     def __call__(self,
                  data: List[str],
-                 show_progress: bool = False
+                 **kwargs
                  ) -> List[List[str]]:
         """
         Split a list of strings into a list of lists containing sentences as
@@ -103,6 +105,7 @@ class PysbdSentencizer:
             List[List[str]]: List of lists of sentences as strings with one
                 list of sentences for each input string.
         """
+        show_progress = kwargs.get("show_progress", False)
         if show_progress:
             sentences = [self._seg.segment(t) for t in tqdm(data)]
         else:

@@ -1,8 +1,11 @@
 import re
 from typing import Optional, Dict, List
 
+from tqdm.auto import tqdm
+
 from text_splitter.constants import BULLETS
-from text_splitter.patterns import PARAGRAPH_PATTERN_SIMPLE, ENUM_PATTERN_NO_DATE, PARAGRAPH_PATTERN
+from text_splitter.patterns import (PARAGRAPH_PATTERN_SIMPLE,
+                                    ENUM_PATTERN_NO_DATE_DE, PARAGRAPH_PATTERN)
 
 
 class CleanParagrapher:
@@ -17,12 +20,13 @@ class CleanParagrapher:
 
         self.paragraph_pattern = specs.get("paragraph_pattern",
                                            PARAGRAPH_PATTERN_SIMPLE)
-        self.enum_pattern = specs.get("enum_pattern", ENUM_PATTERN_NO_DATE)
+        self.enum_pattern = specs.get("enum_pattern", ENUM_PATTERN_NO_DATE_DE)
         self.bullets = specs.get("bullets", BULLETS)
 
     def __call__(self,
                  data: List[str],
                  merge_bullets: Optional[bool] = True,
+                 show_progress: bool = False,
                  ) -> List[List[str]]:
         """
         Split a list of strings into a list of lists containing paragraphs as
@@ -38,7 +42,11 @@ class CleanParagrapher:
             List[List[str]]: List of lists of paragraphs as strings with one
                 list of paragraphs for each input string.
         """
-        return [self._split(text, merge_bullets) for text in data]
+        if show_progress:
+            return [self._split(text, merge_bullets)
+                    for text in tqdm(data, desc="Splitting paragraphs")]
+        else:
+            return [self._split(text, merge_bullets) for text in data]
 
     def _split(self,
                text: str,
@@ -103,6 +111,7 @@ class RegexParagrapher:
 
     def __call__(self,
                  data: List[str],
+                 show_progress: bool = False
                  ) -> List[List[str]]:
         """
         Split a list of strings into a list of lists containing paragraphs as
@@ -115,7 +124,11 @@ class RegexParagrapher:
             List[List[str]]: List of lists of paragraphs as strings with one
                 list of paragraphs for each input string.
         """
-        return [self._split(text) for text in data]
+        if show_progress:
+            return [self._split(text)
+                    for text in tqdm(data, desc="Splitting paragraphs")]
+        else:
+            return [self._split(text) for text in data]
 
     def _split(self, text: str) -> List[str]:
         """

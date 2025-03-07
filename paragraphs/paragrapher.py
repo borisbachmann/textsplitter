@@ -9,7 +9,6 @@ class ParaSegmenterProtocol(Protocol):
 
     Args:
         data: List[str]: List of strings to split into sentences.
-        show_progress: bool: Show progress bar if True.
 
     Returns:
         List[List[str]]: List of lists of sentences as strings with one
@@ -75,6 +74,9 @@ class Paragrapher:
             input is a list of strings).
         """
         if isinstance(data, str):
+            # supress progress bar for single texts
+            if "show_progress" in kwargs:
+                kwargs.pop("show_progress")
             # wrap to ensure that the segmenter receives a list
             paragraphs = self._segmenter([data], *args, **kwargs)
             paragraphs = self._postprocess(paragraphs)

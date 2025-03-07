@@ -5,7 +5,7 @@ from tqdm.auto import tqdm
 
 from ..constants import (TEXT_COL, SENT_COL, SENTS_COL, SENT_N_COL, SENT_ID_COL,
                          SENT_SPAN_COL)
-from ..paragraphs.para_handling import ParagraphModule
+from ..paragraphs.para_handling import ParagraphSegmenter
 from .sentencizer import Sentencizer
 from ..paragraphs.paragrapher import Paragrapher
 from ..utils import column_list, increment_ids, add_id, find_substring_indices
@@ -14,16 +14,15 @@ from ..utils import column_list, increment_ids, add_id, find_substring_indices
 tqdm.pandas()
 
 
-class SentenceModule:
+class SentenceSegmenter:
     def __init__(self, sent_specs, para_specs):
         if sent_specs is None:
             sent_specs = {}
         self.splitter = initiate_sentencizer(sent_specs.get("sentencizer",
                                                             ("pysbd", "de"))
                                              )
-        self.show_progress = sent_specs.get("show_progress", False)
 
-        self.paragrapher = ParagraphModule(para_specs)
+        self.paragrapher = ParagraphSegmenter(para_specs)
 
     def split(self,
               text: str,
@@ -35,12 +34,14 @@ class SentenceModule:
         a list of sentences as strings. Optionally, return a list of tuples with
         sentence index and sentence as strings. Uses spacy for sentence splitting
         and requires a spacy language model as input."""
+        drop_placeholders = kwargs.pop("drop_placeholders", [])
 
         # split into paragraphs first
-        paragraphs = self.paragrapher.split(text)
+        paragraphs = self.paragrapher.split(text,
+                                            drop_placeholders=drop_placeholders)
         # process paragraphs individually into sentences
         sentences = self.splitter.split(paragraphs,
-                                        show_progress=self.show_progress
+                                        **kwargs
                                         )
         # flatten sentence lists for paragraphs into one list for whole text
         sentences = [sentence for paragraph in sentences
@@ -76,12 +77,44 @@ class SentenceModule:
         Returns:
             list: List of lists of sentences as strings or tuples.
         """
-        sentences = [self.split(text=text,
-                                as_tuples=as_tuples,
-                                include_span=include_span
-                                )
-                     for text in tqdm(texts, desc="Splitting sentences")
+        drop_placeholders = kwargs.pop("drop_placeholders", [])
+        show_progress = kwargs.pop("show_progress", False)
+
+        # split into paragraphs first
+        paragraphs = self.paragrapher.split_list(
+            texts, drop_placeholders=drop_placeholders)
+
+        # process paragraphs individually into sentences
+        if show_progress:
+            iterator = tqdm(paragraphs, desc="Splitting sentences")
+        else:
+            iterator = paragraphs
+
+        sentences = [self.splitter.split(data=para_list,
+                                         as_tuples=as_tuples,
+                                         include_span=include_span,
+                                         **kwargs
+                                         )
+                     for para_list in iterator
                      ]
+
+        # flatten sentence lists for paragraphs into one list for whole text
+        sentences = [[sentence for paragraph in para_list for sentence in paragraph]
+                     for para_list in sentences]
+
+        if include_span:
+            if show_progress:
+                iterator = tqdm(zip(texts, sentences),
+                                desc="Adding span indices",
+                                total=len(texts))
+            else:
+                iterator = zip(texts, sentences)
+
+            sentences = [list(zip(find_substring_indices(text, sents), sents))
+                            for text, sents in iterator]
+
+        if as_tuples:
+            sentences = [add_id(sents) for sents in sentences]
 
         return sentences
 
@@ -111,7 +144,8 @@ class SentenceModule:
 
         df[SENTS_COL] = pd.Series(self.split_list(df[column].tolist(),
                                                   as_tuples=True,
-                                                  include_span=include_span
+                                                  include_span=include_span,
+                                                  **kwargs
                                                   )
                                   )
 

@@ -9,6 +9,10 @@ DEFAULT_METRIC = "pairwise"             # strategy to check threshold
 DEFAULT_SCOPE = 5                       # lookahead for similarity calculation
 DEFAULT_RESOLUTION = 1.0                # resolution for louvain community
                                         # detection
+DEFAULT_RES_MULTIPLIER = 2.875          # multiplier to calculate resolution
+                                        # from goal length for graph chunking
+                                        # (obtained by experimentation)
+
 # Constants for columns in Dataframe operations
 # Default columns are optimized for use with the corpus_builder module
 

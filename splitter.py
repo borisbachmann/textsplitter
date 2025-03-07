@@ -12,16 +12,16 @@ Currently, three types of segmenters are supported:
 - Chunks: handled internally by a ChunkModule instance
 """
 
-from typing import Optional, Union
+from typing import Optional, Union, List
 
 import pandas as pd
 
 from tqdm.auto import tqdm
 
 from .constants import TEXT_COL
-from .chunks.chunk_handling import ChunkModule, DummyChunkModule
-from .paragraphs.para_handling import ParagraphModule
-from .sentences.sent_handling import SentenceModule
+from .chunks.chunk_handling import ChunkSegmenter, DummyChunkSegmenter
+from .paragraphs.para_handling import ParagraphSegmenter
+from .sentences.sent_handling import SentenceSegmenter
 
 # register pandas
 tqdm.pandas()
@@ -34,9 +34,16 @@ class TextSplitter:
     for pandas Series, and pandas DataFrames for pandas DataFrames.
 
     A high-level wrapper class around different text-splitting techniques
-    (sentences, paragraphs, and chunks). This class can be initialized with
-    specifications for each segment type and provides a unified interface to
-    the underlying module classes.
+    (sentences, paragraphs, and chunks). It maintains instances of sentence,
+    paragraph, and chunk segmenters and provides a unified interface to them.
+
+    Args:
+        sentence_specs (Optional[dict]): Specifications for the sentence
+            segmenter. See SentenceModule for details.
+        paragraph_specs (Optional[dict]): Specifications for the paragraph
+            segmenter. See ParagraphModule for details.
+        chunking_specs (Optional[dict]): Specifications for the chunk segmenter.
+            See ChunkModule for details.
     """
     def __init__(
             self,
@@ -44,24 +51,30 @@ class TextSplitter:
             paragraph_specs: Optional[dict] = None,
             chunking_specs: Optional[dict] = None,
             ):
-        # iniitiate paragraphing attributes
-        self.paragrapher = ParagraphModule(paragraph_specs)
+        # initialize paragraphing attributes
+        self.paragrapher = ParagraphSegmenter(paragraph_specs)
 
-        # initiate sentencizing attributes
-        self.sentencizer = SentenceModule(sentence_specs, paragraph_specs)
+        # initialize sentencizing attributes
+        self.sentencizer = SentenceSegmenter(sentence_specs, paragraph_specs)
 
-        # initiate chunking attributes
+        # initialize chunking attributes
         if chunking_specs is None:
-            print("TextSplitter intitialized without chunking capabilities.")
-            self.chunker = DummyChunkModule()
+            print("TextSplitter initialized without chunking capabilities.")
+            self.chunker = DummyChunkSegmenter()
         else:
             if not "model" in chunking_specs:
-                print ("No model specified for chunking. Splitter intitialized "
+                print ("No model specified for chunking. Splitter initialized "
                        "without chunking capabilities.")
-                self.chunker = DummyChunkModule()
+                self.chunker = DummyChunkSegmenter()
             else:
-                self.chunker = ChunkModule(chunking_specs, paragraph_specs,
-                                           sentence_specs)
+                self.chunker = ChunkSegmenter(chunking_specs, paragraph_specs,
+                                              sentence_specs)
+
+        self.processors = {
+            "sentences": self.sentencizer,
+            "paragraphs": self.paragrapher,
+            "chunks": self.chunker
+        }
 
     # present for backwards compatibility. Use explicit methods instead.
     def __call__(
@@ -74,7 +87,36 @@ class TextSplitter:
             mathematical_ids: Optional[bool] = False,
             drop_text: Optional[bool] = True,
             **kwargs
-            ) -> Union[str, list, pd.Series, pd.DataFrame]:
+            ) -> Union[List[str], List[List[str]], pd.Series, pd.DataFrame]:
+        """
+        Split data with the appropriate segmenter module based on mode.
+
+        Args:
+            data (Union[str, list, pd.Series, pd.DataFrame]): Text data to
+                split.
+            mode (str): Type of segment unit to split the text into.
+            column (Optional[str]): Column name if data is a DataFrame
+                (default is specified by TEXT_COL, currently "text").
+            as_tuples (Optional[bool]): Whether to return tuples with id and
+                text (only for data other than DataFrame, default False).
+            include_span (Optional[bool]): Include span information if True
+                (default False).
+            mathematical_ids (Optional[bool]): Increment IDs by 1 (starting at 1
+                rather than 0) if True (default False). Applies only when
+                as_tuples is True or data is a DataFrame.
+            drop_text (Optional[bool]): In a dataframe, drop the original text
+                column if True (default True)
+            **kwargs: Additional keyword arguments for the segmenter.
+
+        Returns:
+            Union[str, list, pd.Series, pd.DataFrame]: Data split into segments
+                based on the mode.
+
+        Raises:
+            ValueError: If mode is not supported.
+            TypeError: If data type is not supported.
+        """
+
         return self._process_data(data=data, mode=mode, column=column,
                                   as_tuples=as_tuples, include_span=include_span,
                                   mathematical_ids=mathematical_ids,
@@ -88,7 +130,33 @@ class TextSplitter:
                   mathematical_ids: Optional[bool] = False,
                   drop_text: Optional[bool] = True,
                   **kwargs
-                  ) -> Union[str, list, pd.Series, pd.DataFrame]:
+                  ) -> Union[List[str], List[List[str]], pd.Series, pd.DataFrame]:
+        """
+        Split text into sentences.
+
+        Args:
+            data (Union[str, list, pd.Series, pd.DataFrame]): Text data to
+                split.
+            column (Optional[str]): Column name if data is a DataFrame
+                (default is specified by TEXT_COL, currently "text").
+            as_tuples (Optional[bool]): Whether to return tuples with id and
+                text (only for data other than DataFrame, default False).
+            include_span (Optional[bool]): Include span information if True
+                (default False).
+            mathematical_ids (Optional[bool]): Increment IDs by 1 (starting at 1
+                rather than 0) if True (default False). Applies only when
+                as_tuples is True or data is a DataFrame.
+            drop_text (Optional[bool]): In a dataframe, drop the original text
+                column if True (default True)
+            **kwargs: Additional keyword arguments for the sentence segmenter.
+
+        Returns:
+            Union[str, list, pd.Series, pd.DataFrame]: Data split into sentences.
+
+        Raises:
+            ValueError: If mode is not supported.
+            TypeError: If data type is not supported.
+        """
         return self._process_data(data=data, mode="sentences", column=column,
                                   as_tuples=as_tuples, include_span=include_span,
                                   mathematical_ids=mathematical_ids,
@@ -102,7 +170,35 @@ class TextSplitter:
                    mathematical_ids: Optional[bool] = False,
                    drop_text: Optional[bool] = True,
                    **kwargs
-                   ) -> Union[str, list, pd.Series, pd.DataFrame]:
+                   ) -> Union[List[str], List[List[str]], pd.Series,
+                              pd.DataFrame]:
+        """
+        Split text into paragraphs.
+
+        Args:
+            data (Union[str, list, pd.Series, pd.DataFrame]): Text data to
+                split.
+            column (Optional[str]): Column name if data is a DataFrame
+                (default is specified by TEXT_COL, currently "text").
+            as_tuples (Optional[bool]): Whether to return tuples with id and
+                text (only for data other than DataFrame, default False).
+            include_span (Optional[bool]): Include span information if True
+                (default False).
+            mathematical_ids (Optional[bool]): Increment IDs by 1 (starting at 1
+                rather than 0) if True (default False). Applies only when
+                as_tuples is True or data is a DataFrame.
+            drop_text (Optional[bool]): In a dataframe, drop the original text
+                column if True (default True)
+            **kwargs: Additional keyword arguments for the paragraph segmenter.
+
+        Returns:
+            Union[str, list, pd.Series, pd.DataFrame]: Data split into
+                paragraphs.
+
+        Raises:
+            ValueError: If mode is not supported.
+            TypeError: If data type is not supported.
+        """
         return self._process_data(data=data, mode="paragraphs", column=column,
                                   as_tuples=as_tuples, include_span=include_span,
                                   mathematical_ids=mathematical_ids,
@@ -116,7 +212,33 @@ class TextSplitter:
                mathematical_ids: Optional[bool] = False,
                drop_text: Optional[bool] = True,
                **kwargs
-               ) -> Union[str, list, pd.Series, pd.DataFrame]:
+               ) -> Union[List[str], List[List[str]], pd.Series, pd.DataFrame]:
+        """
+        Split text into chunks.
+
+        Args:
+            data (Union[str, list, pd.Series, pd.DataFrame]): Text data to
+                split.
+            column (Optional[str]): Column name if data is a DataFrame
+                (default is specified by TEXT_COL, currently "text").
+            as_tuples (Optional[bool]): Whether to return tuples with id and
+                text (only for data other than DataFrame, default False).
+            include_span (Optional[bool]): Include span information if True
+                (default False).
+            mathematical_ids (Optional[bool]): Increment IDs by 1 (starting at 1
+                rather than 0) if True (default False). Applies only when
+                as_tuples is True or data is a DataFrame.
+            drop_text (Optional[bool]): In a dataframe, drop the original text
+                column if True (default True)
+            **kwargs: Additional keyword arguments for the chunk segmenter.
+
+        Returns:
+            Union[str, list, pd.Series, pd.DataFrame]: Data split into chunks.
+
+        Raises:
+            ValueError: If mode is not supported.
+            TypeError: If data type is not supported.
+        """
         return self._process_data(data=data, mode="chunks", column=column,
                                   as_tuples=as_tuples, include_span=include_span,
                                   mathematical_ids=mathematical_ids,
@@ -131,47 +253,76 @@ class TextSplitter:
                       mathematical_ids: Optional[bool] = False,
                       drop_text: Optional[bool] = True,
                       **kwargs
-                      ) -> Union[list, pd.Series, pd.DataFrame]:
-        """Process data with the appropriate segmenter module based on mode."""
-        processors = {
-            "sentences": self.sentencizer,
-            "paragraphs": self.paragrapher,
-            "chunks": self.chunker
+                      ) -> Union[List[str], List[List[str]], pd.Series,
+                           pd.DataFrame]:
+        """
+        Process data with the appropriate segmenter module based on mode.
+
+        Args:
+            data (Union[str, list, pd.Series, pd.DataFrame]): Text data to
+                split.
+            mode (str): Type of segment unit to split the text into.
+            column (Optional[str]): Column name if data is a DataFrame
+                (default is specified by TEXT_COL, currently "text").
+            as_tuples (Optional[bool]): Whether to return tuples with id and
+                text  (only for data other than DataFrame, default False).
+            include_span (Optional[bool]): Include span information if True
+                (default False).
+            mathematical_ids (Optional[bool]): Increment IDs by 1 (starting at 1
+                rather than 0) if True (default False). Applies only when
+                as_tuples is True or data is a DataFrame.
+            drop_text (Optional[bool]): In a dataframe, drop the original text
+                column if True (default True)
+            **kwargs: Additional keyword arguments for the segmenter.
+
+
+        Returns:
+            Union[str, list, pd.Series, pd.DataFrame]: Data split into segments
+                based on the mode.
+
+        Raises:
+            ValueError: If mode is not supported.
+            TypeError: If data type is not supported.
+        """
+        processor = self.processors.get(mode)
+        if processor is None:
+            raise ValueError(f"Unsupported mode '{mode}'. "
+                             f"Use one of {list(self.processors.keys())}.")
+
+        common_args = {
+            "as_tuples": as_tuples,
+            "include_span": include_span,
+            **kwargs
         }
 
-        processor = processors.get(mode)
-        if processor is None:
-            raise ValueError(f"Unsupported mode {mode}. "
-                             f"Use on of {list[processors.keys()]}.")
+        # helper functions to maintain readability
+        def process_text(text):
+            return processor.split(text=text, **common_args)
 
-        if isinstance(data, str):
-            return processor.split(text=data,
-                                   as_tuples=as_tuples,
-                                   include_span=include_span,
-                                   **kwargs
-                                   )
-        elif isinstance(data, list):
-            return processor.split_list(texts=data,
-                                        as_tuples=as_tuples,
-                                        include_span=include_span,
-                                        **kwargs
-                                        )
-        elif isinstance(data, pd.Series):
-            return pd.Series(processor.split_list(texts=data.tolist(),
-                                                  as_tuples=as_tuples,
-                                                  include_span=include_span,
-                                                  **kwargs
-                                                  )
-                             )
-        elif isinstance(data, pd.DataFrame):
-            return processor.split_df(input_df=data,
-                                      column=column,
-                                      drop_text=drop_text,
+        def process_list(texts):
+            return processor.split_list(texts=texts, **common_args)
+
+        def process_series(series):
+            return pd.Series(processor.split_list(texts=series.tolist(),
+                                                  **common_args))
+
+        def process_df(df):
+            return processor.split_df(input_df=df, column=column,
                                       include_span=include_span,
+                                      drop_text=drop_text,
                                       mathematical_ids=mathematical_ids,
-                                      **kwargs
-                                      )
-        else:
-            raise ValueError(f"Data type not supported. Provided data is of "
-                             f"type {type(data)}, but must be str, List[str], "
-                             f"pd.Series or pd.DataFrame.")
+                                      **kwargs)
+
+        handlers = {
+            str: process_text,
+            list: process_list,
+            pd.Series: process_series,
+            pd.DataFrame: process_df
+        }
+
+        handler = handlers.get(type(data))
+        if handler:
+            return handler(data)
+
+        raise TypeError(f"Unsupported data type: {type(data)}. "
+                        f"Expected one of {list(handlers.keys())}.")
