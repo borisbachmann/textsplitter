@@ -194,7 +194,8 @@ class DummyChunkSegmenter:
     def split(self,
               text: str,
               as_tuples: bool = False,
-              include_span: bool = False
+              include_span: bool = False,
+              **kwargs
               ) -> list:
         chunks = [text]
 
@@ -210,13 +211,13 @@ class DummyChunkSegmenter:
     def split_list(self,
                    texts: list,
                    as_tuples: bool = False,
-                   include_span: bool = False
+                   include_span: bool = False,
+                   **kwargs
                    ) -> list:
         chunks = [[t] for t in texts]
 
         if include_span:
-            indices = [[(0, len(t)) for t in text_list]
-                      for text_list in texts]
+            indices = [[((0, len(text)))] for text in texts]
             chunks = [list(zip(index_list, chunk_list))
                      for index_list, chunk_list in zip(indices, chunks)]
 
@@ -230,21 +231,21 @@ class DummyChunkSegmenter:
                  column: str = TEXT_COL,
                  drop_text: bool = True,
                  mathematical_ids: bool = False,
-                 include_span: bool = False
+                 include_span: bool = False,
+                 **kwargs
                  ) -> pd.DataFrame:
-        df = input_df.copy()
-        df[CHUNK_ID_COL] = 0
-        df[CHUNK_COL] = df[column]
-        if include_span:
-            df[CHUNK_SPAN_COL] = (0, len(df[column]))
-        df[CHUNK_N_COL] = 1
+        texts = input_df[column].tolist()
+        chunks = self.split_list(texts,
+                                 as_tuples=True,
+                                 include_span=include_span
+                                 )
 
-        if mathematical_ids:
-            df[CHUNK_ID_COL] = df[CHUNK_ID_COL].map(lambda x: x + 1)
-
-        columns = [c for c in column_list(CHUNK_COL, column) if c in df.columns]
-
-        if drop_text:
-            columns.remove(column)
-
-        return df[columns]
+        return cast_to_df(
+            input_df=input_df,
+            segments=chunks,
+            base_column=CHUNK_COL,
+            text_column=column,
+            drop_text=drop_text,
+            mathematical_ids=mathematical_ids,
+            include_span=include_span
+        )

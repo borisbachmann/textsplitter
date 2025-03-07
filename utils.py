@@ -148,10 +148,10 @@ def cast_to_df(
     Returns:
         pd.DataFrame: DataFrame with segment data as rows
     """
-    multi_column = multi_pattern(PARA_COL)
-    id_column = id_pattern(PARA_COL)
-    span_column = span_pattern(PARA_COL)
-    n_column = n_pattern(PARA_COL)
+    multi_column = multi_pattern(base_column)
+    id_column = id_pattern(base_column)
+    span_column = span_pattern(base_column)
+    n_column = n_pattern(base_column)
 
     df = input_df.copy()
 
