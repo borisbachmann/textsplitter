@@ -1,10 +1,47 @@
-from typing import List
+"""
+This module provides classes for built-in chunking methods. Classes of this
+type are used to wrap around different embedding-based chunking techniques.
+They do not have to implement the chunking logic themselves, but provide a
+common interface defined by the EmbeddingChunker class. They take a list of
+sentences and corresponding embeddings as input and return a list of chunks
+as lists of sentences within each chunk.
+
+Further chunking techniques can be added by implementing the EmbeddingChunker
+protocol and adding the new class to the CHUNKER_MAP dictionary.
+"""
+
+from typing import List, Protocol
 
 from numpy._typing import NDArray
 from text_splitter.chunks.techniques.graph_chunking import graph_chunking
 from text_splitter.chunks.techniques.linear_chunking import linear_chunking
 from text_splitter.constants import DEFAULT_METRIC, DEFAULT_RES_MULTIPLIER
 
+
+class EmbeddingChunker(Protocol):
+    """
+    Protocol class for embedding-based chunking techniques. Classes can be
+    initiated with any kind of arguments and should implement the __call__
+    method to chunk a list of sentences and corresponding embeddings into a
+    list of chunks as lists of sentences within each chunk.
+    """
+    def __init__(self, **kwargs) -> None:
+        ...
+
+    def __call__(
+            self,
+            sentences: List[str],
+            embeddings: List[NDArray],
+            **kwargs
+    ) -> List[List[str]]:
+        """
+        Take a list of sentences and corresponding embeddings and return a list
+        chunks as lists of consecutive sentences within each chunk based upon
+        some embedding-based chunking technique.
+        """
+        ...
+
+# built-in types implementing the EmbeddingChunker protocol
 
 class LinearChunker:
     """
