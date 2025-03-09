@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Protocol
 
 import pysbd
 import spacy
@@ -6,7 +6,27 @@ from tqdm.auto import tqdm
 from wtpsplit import SaT
 
 
-class SpacySentencizer:
+# Protocol for all Sentencizer backends (segmenters) to implement
+class SentSegmenterProtocol(Protocol):
+    """
+    Protocol for custom sentence segmenters to implement.
+
+    Args:
+        data: List[str]: List of strings to split into sentences.
+
+    Returns:
+        List[List[str]]: List of lists of sentences as strings with one
+            list of sentences for each input string.
+    """
+    def __call__(self,
+                 data: List[str],
+                 **kwargs
+                 ) -> List[List[str]]:
+        ...
+
+
+# built-in sentence segmenters
+class SpacySentSegmenter:
     """
     spaCy-based sentence splitter. Uses spaCy's dependency parser to split
     sentences. Initializes with a spaCy language model name.
@@ -41,7 +61,7 @@ class SpacySentencizer:
         sentences = [[s.text for s in doc.sents] for doc in docs]
         return sentences
 
-class SatSentencizer:
+class SatSentSegmenter:
     """
     SaT-based sentence splitter. Uses the SaT sentence splitter for the
     wtsplit package to split sentences. Initializes with a SaT model name.
@@ -76,7 +96,7 @@ class SatSentencizer:
             sentences = list(self._sat.split(data))
         return sentences
 
-class PysbdSentencizer:
+class PysbdSentSegmenter:
     """
     PySBD-based sentence splitter. Uses the rules-based PySBD sentence splitter
     to split sentences. Initializes with an ISO language code.
@@ -111,9 +131,9 @@ class PysbdSentencizer:
         return sentences
 
 
-# Mapping of segmenter names to segmenter classes
+# Mapping of segmenter names to built-in segmenter classes
 SENT_SEGMENTER_MAP = {
-    "pysbd": PysbdSentencizer,
-    "sat":   SatSentencizer,
-    "spacy": SpacySentencizer
+    "pysbd": PysbdSentSegmenter,
+    "sat":   SatSentSegmenter,
+    "spacy": SpacySentSegmenter
 }

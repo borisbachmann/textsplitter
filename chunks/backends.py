@@ -18,7 +18,7 @@ from .methods.linear_chunking import linear_chunking
 from .constants import DEFAULT_METRIC, DEFAULT_RES_MULTIPLIER
 
 
-class EmbeddingBackendProtocol(Protocol):
+class EmbeddingChunkerProtocol(Protocol):
     """
     Protocol class for embedding-based chunking techniques. Classes can be
     initiated with any kind of arguments and should implement the __call__
@@ -43,7 +43,7 @@ class EmbeddingBackendProtocol(Protocol):
 
 # built-in types implementing the EmbeddingChunker protocol
 
-class LinearBackend:
+class LinearEmbeddingChunker:
     """
     Chunker class that wraps around the linear chunking technique. Linear
     chunking splits a list of sentences into chunks bis aggregating consecutive
@@ -93,7 +93,7 @@ class LinearBackend:
                                **kwargs)
 
 
-class GraphBackend:
+class GraphEmbeddingChunker:
     """
     Chunker class that wraps around the graph chunking technique. Graph chunking
     splits a list of sentences into chunks by creating a similarity graph
@@ -160,6 +160,6 @@ class GraphBackend:
 # To extend the chunker with additional chunking techniques, add the new
 # technique to the CHUNKER_MAP dictionary.
 CHUNK_BACKENDS_MAP = {
-    "linear": LinearBackend,
-    "graph": GraphBackend
+    "linear": LinearEmbeddingChunker,
+    "graph": GraphEmbeddingChunker
 }

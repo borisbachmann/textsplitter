@@ -5,7 +5,8 @@ from tqdm.auto import tqdm
 
 from ..dataframes import columns
 from ..paragraphs.handling import ParagraphHandler
-from .sentencizer import Sentencizer, SentSegmenterProtocol
+from .sentencizer import Sentencizer
+from .backends import SentSegmenterProtocol
 from ..utils import add_id, find_substring_indices
 from ..dataframes.functions import cast_to_df
 
@@ -31,7 +32,7 @@ class SentenceHandler:
     def __init__(self, sent_specs, para_specs):
         if sent_specs is None:
             sent_specs = {}
-        self.splitter = self._initialize_splitter(
+        self.sentencizer = self._initialize_splitter(
             sent_specs.get("sentencizer", ("pysbd", "de")))
 
         self.paragrapher = ParagraphHandler(para_specs)
@@ -78,9 +79,9 @@ class SentenceHandler:
         of sentences in the original text.
 
         Args:
-            text: str: Text to split into sentences.
-            as_tuples: bool: Return sentences as tuples with index and sentence.
-            include_span: bool: Return sentences as tuples with index, start and
+            text (str): Text to split into sentences.
+            as_tuples: (bool): Return sentences as tuples with index and sentence.
+            include_span: (bool): Return sentences as tuples with index, start and
                 end indices of sentence in original text.
             kwargs: Additional arguments for sentencizer
 
@@ -96,9 +97,9 @@ class SentenceHandler:
             text, drop_placeholders=drop_placeholders)
 
         # process paragraphs individually into sentences
-        sentences = self.splitter.split(paragraphs,
-                                        **kwargs
-                                        )
+        sentences = self.sentencizer.split(paragraphs,
+                                           **kwargs
+                                           )
         # flatten sentence lists for paragraphs into one list for whole text
         sentences = [sentence for paragraph in sentences
                      for sentence in paragraph]
@@ -127,10 +128,11 @@ class SentenceHandler:
         end indices of sentences in the original text.
 
         Args:
-            texts {list}: List of strings to split into sentences.
-            as_tuples {bool}: Return sentences as tuples with index and sentence.
-            include_span {bool}: Return sentences as tuples with index, start and
+            texts (list): List of strings to split into sentences.
+            as_tuples (bool): Return sentences as tuples with index and sentence.
+            include_span (bool): Return sentences as tuples with index, start and
                 end indices of sentence in original text.
+            kwargs: Additional arguments for sentencizer
 
         Returns:
             Union[List[List[str]], List[List[Tuple[int, str]]],
@@ -151,16 +153,17 @@ class SentenceHandler:
         else:
             iterator = paragraphs
 
-        sentences = [self.splitter.split(data=para_list,
-                                         as_tuples=as_tuples,
-                                         include_span=include_span,
-                                         **kwargs
-                                         )
+        sentences = [self.sentencizer.split(data=para_list,
+                                            as_tuples=as_tuples,
+                                            include_span=include_span,
+                                            **kwargs
+                                            )
                      for para_list in iterator
                      ]
 
         # flatten sentence lists for paragraphs into one list for whole text
-        sentences = [[sentence for paragraph in para_list for sentence in paragraph]
+        sentences = [[sentence for paragraph in para_list
+                      for sentence in paragraph]
                      for para_list in sentences]
 
         if include_span:

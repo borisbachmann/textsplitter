@@ -1,5 +1,5 @@
 import re
-from typing import Optional, Dict, List
+from typing import Optional, Dict, List, Protocol
 
 from tqdm.auto import tqdm
 
@@ -7,7 +7,28 @@ from .constants import BULLETS
 from .patterns import (PARAGRAPH_PATTERN_SIMPLE, ENUM_PATTERN_NO_DATE_DE,
                        PARAGRAPH_PATTERN)
 
-class CleanParagrapher:
+# Protocol for all paragraph backends (segmenters) to implement
+class ParaSegmenterProtocol(Protocol):
+    """
+    Protocol for custom paragraph segmenters to implement.
+
+    Args:
+        data (List[str]): List of strings to split into sentences.
+
+    Returns:
+        List[List[str]]: List of lists of sentences as strings with one
+            list of sentences for each input string.
+    """
+    def __call__(self,
+                 data: List[str],
+                 *args,
+                 **kwargs
+                 ) -> List[List[str]]:
+        ...
+
+
+# built-in paragraph segmenter classes
+class CleanParaSegmenter:
     """
     Linebreak-based paragraph segmenter that applies rules to re-merge
     bullet-point and enumerated groups into paragraphs.
@@ -96,7 +117,7 @@ class CleanParagrapher:
         return merged_paragraphs
 
 
-class RegexParagrapher:
+class RegexParaSegmenter:
     """
     Regex-based paragraph segmenter that splits text into paragraphs based
     upon a regex pattern. Uses default pattern if no custom pattern is provided.
@@ -143,6 +164,6 @@ class RegexParagrapher:
 
 # Mapping of paragraph segmenter names to segmenter classes
 PARA_SEGMENTER_MAP = {
-    "clean": CleanParagrapher,
-    "regex": RegexParagrapher
+    "clean": CleanParaSegmenter,
+    "regex": RegexParaSegmenter
 }

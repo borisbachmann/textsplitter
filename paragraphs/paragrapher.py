@@ -1,25 +1,7 @@
-from typing import Union, Optional, List, Protocol, Any
+from typing import Union, Optional, List, Any
 
-from .backends import PARA_SEGMENTER_MAP
+from .backends import PARA_SEGMENTER_MAP, ParaSegmenterProtocol
 
-
-class ParaSegmenterProtocol(Protocol):
-    """
-    Protocol for custom paragraph segmenters to implement.
-
-    Args:
-        data (List[str]): List of strings to split into sentences.
-
-    Returns:
-        List[List[str]]: List of lists of sentences as strings with one
-            list of sentences for each input string.
-    """
-    def __call__(self,
-                 data: List[str],
-                 *args,
-                 **kwargs
-                 ) -> List[List[str]]:
-        ...
 
 class Paragrapher:
     """

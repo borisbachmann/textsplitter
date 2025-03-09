@@ -1,23 +1,7 @@
-from typing import Union, List, Protocol, Optional
+from typing import Union, List, Optional
 
-from .backends import SENT_SEGMENTER_MAP
+from .backends import SENT_SEGMENTER_MAP, SentSegmenterProtocol
 
-class SentSegmenterProtocol(Protocol):
-    """
-    Protocol for custom sentence segmenters to implement.
-
-    Args:
-        data: List[str]: List of strings to split into sentences.
-
-    Returns:
-        List[List[str]]: List of lists of sentences as strings with one
-            list of sentences for each input string.
-    """
-    def __call__(self,
-                 data: List[str],
-                 **kwargs
-                 ) -> List[List[str]]:
-        ...
 
 class Sentencizer:
     """

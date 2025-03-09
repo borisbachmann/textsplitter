@@ -1,33 +1,114 @@
+"""
+This module includes basic Chunker classes that wrap around different chunking
+techniques. Chunkers are used as internal objects within the ChunkHandler class
+to split texts into chunks. The ChunkerProtocoll defines the interface for all
+chunkers to work with the ChunkHandler.
+
+The DummyChunker is a placeholder chunker that returns the original text as a
+single chunk, the EmbeddingChunker is a more complex chunker that uses an
+embedding model to split texts into sentences which are then turned back into
+chunks.
+
+Other chunkers that can be added can rely on different chunking
+techniques. All have to be able to handle specs for internal paragraph and
+sentence segmenters upon intialization, even if they do not use them.
+"""
+
 from typing import Union, List, Protocol, Dict, Any, Optional
 
 from sentence_transformers import SentenceTransformer
 from tqdm.auto import tqdm
 
-from .backends import CHUNK_BACKENDS_MAP, EmbeddingBackendProtocol
+from .backends import CHUNK_BACKENDS_MAP, EmbeddingChunkerProtocol
 from .utils import make_text_from_chunk
 from text_splitter.chunks.embeddings import EmbeddingModel
 from ..sentences.handling import SentenceHandler
 from ..utils import uniform_depth
 
 
-class ChunkerProtocoll(Protocol):
+class ChunkerProtocol(Protocol):
     """
     Protocol for custom chunkers to implement.
 
     Args:
-        data: Union[List[str], List[List[str]]]: List of strings or list of
-            lists of strings to split into chunks.
-        show_progress: bool: Show progress bar if True.
-
-    Returns:
-        List[List[str]]: List or list of lists of chunks as strings with one
-            list of chunks for each input string or list of strings.
-    """
-    def __call__(self,
-                 data: Union[List[str], List[List[str]]],
-                 show_progress: bool = False
-                 ) -> List[List[str]]:
+        args: positional arguments for initialization of the chunker.
+        kwargs: keyword arguments for initialization of the chunker.
+        """
+    def __init__(self, *args, **kwargs):
         ...
+
+    def split(self,
+              data: Union[List[str], List[List[str]]],
+              compile: bool = True,
+              postprocess: bool = True,
+              show_progress: Optional[bool] = False,
+              ) -> Union[List[List[str]], List[str]]:
+        """
+        Take a list of strings or a list of lists of strings and return a list
+        of chunks as lists of strings.
+
+        Args:
+            data (Union[List[str], List[List[str]]]): List of strings or a list
+                of lists of strings to split into chunks.
+            compile (bool, optional): If True, the chunker will use its _compile
+                method to compile the chunks and return a list of strings.
+            postprocess (bool, optional): If True, the chunker will use its
+                _postprocess method to postprocess the chunk strings before
+                returning them.
+            show_progress (bool, optional): If True, the chunker will show a
+                progress bar when chunking more than one string.
+
+        Returns:
+            Union[List[List[str]], List[str]]: List of chunks as lists of
+                strings (uncompiled) or a list of strings (compiled). Compiled
+                chunks have to include uncompiled strings with the first and
+                last strings identical with the beinning and end of the complete
+                chunk to enable span identification by the ChunkHandler.
+        """
+        ...
+
+    def _compile_chunks(self,
+                        chunks: Union[List[List[str]], List[List[List[str]]]],
+                        ensure_separators: bool = False
+                        ) -> Union[List[str], List[List[str]]]:
+        """
+        Compile consecutive chunk substrings into single chunk strings.
+
+        Compiled chunks have to include uncompiled strings with the first and
+        last strings identical with the beinning and end of the complete chunk
+        to enable span identification by the ChunkHandler.
+
+        Args:
+            chunks (Union[List[List[str]], List[List[List[str]]]): List of
+                chunks as lists of strings or a list of lists of chunks as lists
+                of ensure_separators: bool: Argument to be caught and ignored.
+            ensure_separators (bool, optional): Argument to place separator
+                punctuation between chunk substrings if needed by this techique.
+                Default is False.
+
+        Returns:
+            Union[List[str], List[List[str]]]: List of chunks as strings or a
+                list of lists of chunks as strings with exactly one string per
+                chunk.
+        """
+        ...
+
+    def _postprocess(self,
+                     data: List[List[str]],
+                     **kwargs
+                     ) -> List[List[str]]:
+        """
+        Apply some postprocessing if needed by the chunking technique. May also
+        return unchanged data if not needed by chunking technique.
+
+        Args:
+            data (List[List[str]]): List of chunks as lists of strings.
+            **kwargs: Additional keyword arguments as needed for postprocessing.
+
+        Returns:
+            List[List[str]]: List of chunks as lists of strings with
+                postprocessing applied.
+        """
 
 class DummyChunker:
     """
@@ -312,7 +393,7 @@ class EmbeddingChunker:
                              "EmbeddingModel or SentenceTransformer.")
 
     def _load_chunker(self,
-                      chunker: Union[str, EmbeddingBackendProtocol],
+                      chunker: Union[str, EmbeddingChunkerProtocol],
                       chunker_specs: Dict[str, Any]
                       ):
         if isinstance(chunker, str):
@@ -325,4 +406,4 @@ class EmbeddingChunker:
         else:
             raise ValueError("Chunker must be a string or callable. Custom "
                              "callables must implement the "
-                             "EmbeddingBackendProtocol.")
+                             "EmbeddingChunkerProtocol.")
