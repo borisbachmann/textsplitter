@@ -1,27 +1,23 @@
-from typing import Dict, Union, Tuple, Callable
-
 import pandas as pd
 from tqdm.auto import tqdm
 
-from ..constants import (TEXT_COL, SENT_COL, SENTS_COL, SENT_N_COL, SENT_ID_COL,
-                         SENT_SPAN_COL)
-from ..paragraphs.para_handling import ParagraphSegmenter
+from ..constants import TEXT_COL, SENT_COL
+from ..paragraphs.para_handling import ParagraphHandler
 from .sentencizer import Sentencizer
-from ..paragraphs.paragrapher import Paragrapher
-from ..utils import column_list, increment_ids, add_id, find_substring_indices, cast_to_df
+from ..utils import add_id, find_substring_indices, cast_to_df
 
 # Enable progress bars for dataframe .map and .apply methods
 tqdm.pandas()
 
 
-class SentenceSegmenter:
+class SentenceHandler:
     def __init__(self, sent_specs, para_specs):
         if sent_specs is None:
             sent_specs = {}
         self.splitter = self._initialize_splitter(
             sent_specs.get("sentencizer", ("pysbd", "de")))
 
-        self.paragrapher = ParagraphSegmenter(para_specs)
+        self.paragrapher = ParagraphHandler(para_specs)
 
     def _initialize_splitter(self, specs):
         if isinstance(specs, tuple):

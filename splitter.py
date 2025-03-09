@@ -19,9 +19,9 @@ import pandas as pd
 from tqdm.auto import tqdm
 
 from .constants import TEXT_COL
-from .chunks.chunk_handling import ChunkSegmenter, DummyChunkSegmenter
-from .paragraphs.para_handling import ParagraphSegmenter
-from .sentences.sent_handling import SentenceSegmenter
+from .chunks.chunk_handling import ChunkHandler
+from .paragraphs.para_handling import ParagraphHandler
+from .sentences.sent_handling import SentenceHandler
 
 # register pandas
 tqdm.pandas()
@@ -52,23 +52,14 @@ class TextSplitter:
             chunking_specs: Optional[dict] = None,
             ):
         # initialize paragraphing attributes
-        self.paragrapher = ParagraphSegmenter(paragraph_specs)
+        self.paragrapher = ParagraphHandler(paragraph_specs)
 
         # initialize sentencizing attributes
-        self.sentencizer = SentenceSegmenter(sentence_specs, paragraph_specs)
+        self.sentencizer = SentenceHandler(sentence_specs, paragraph_specs)
 
         # initialize chunking attributes
-        if chunking_specs is None:
-            print("TextSplitter initialized without chunking capabilities.")
-            self.chunker = DummyChunkSegmenter()
-        else:
-            if not "model" in chunking_specs:
-                print ("No model specified for chunking. Splitter initialized "
-                       "without chunking capabilities.")
-                self.chunker = DummyChunkSegmenter()
-            else:
-                self.chunker = ChunkSegmenter(chunking_specs, paragraph_specs,
-                                              sentence_specs)
+        self.chunker = ChunkHandler(chunking_specs, paragraph_specs,
+                                    sentence_specs)
 
         self.processors = {
             "sentences": self.sentencizer,

@@ -2,23 +2,23 @@
 This module provides classes for built-in chunking methods. Classes of this
 type are used to wrap around different embedding-based chunking techniques.
 They do not have to implement the chunking logic themselves, but provide a
-common interface defined by the EmbeddingChunker class. They take a list of
-sentences and corresponding embeddings as input and return a list of chunks
-as lists of sentences within each chunk.
+common interface defined by the EmbeddingBackendProtocol class. They take
+a list of sentences and corresponding embeddings as input and return a list
+of chunks as lists of sentences within each chunk.
 
-Further chunking techniques can be added by implementing the EmbeddingChunker
-protocol and adding the new class to the CHUNKER_MAP dictionary.
+Further chunking techniques can be added by implementing the
+EmbeddingBackendProtocol and adding the new class to the CHUNKER_MAP dictionary.
 """
 
 from typing import List, Protocol
 
 from numpy._typing import NDArray
-from text_splitter.chunks.techniques.graph_chunking import graph_chunking
-from text_splitter.chunks.techniques.linear_chunking import linear_chunking
-from text_splitter.constants import DEFAULT_METRIC, DEFAULT_RES_MULTIPLIER
+from .methods.graph_chunking import graph_chunking
+from .methods.linear_chunking import linear_chunking
+from .constants import DEFAULT_METRIC, DEFAULT_RES_MULTIPLIER
 
 
-class EmbeddingChunker(Protocol):
+class EmbeddingBackendProtocol(Protocol):
     """
     Protocol class for embedding-based chunking techniques. Classes can be
     initiated with any kind of arguments and should implement the __call__
@@ -43,7 +43,7 @@ class EmbeddingChunker(Protocol):
 
 # built-in types implementing the EmbeddingChunker protocol
 
-class LinearChunker:
+class LinearBackend:
     """
     Chunker class that wraps around the linear chunking technique. Linear
     chunking splits a list of sentences into chunks bis aggregating consecutive
@@ -93,7 +93,7 @@ class LinearChunker:
                                **kwargs)
 
 
-class GraphChunker:
+class GraphBackend:
     """
     Chunker class that wraps around the graph chunking technique. Graph chunking
     splits a list of sentences into chunks by creating a similarity graph
@@ -159,7 +159,7 @@ class GraphChunker:
 # Mapping of paragraph segmenter names to segmenter classes
 # To extend the chunker with additional chunking techniques, add the new
 # technique to the CHUNKER_MAP dictionary.
-CHUNKER_MAP = {
-    "linear": LinearChunker,
-    "graph": GraphChunker
+CHUNK_BACKENDS_MAP = {
+    "linear": LinearBackend,
+    "graph": GraphBackend
 }

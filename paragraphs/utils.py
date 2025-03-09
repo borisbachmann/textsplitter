@@ -1,4 +1,4 @@
-from text_splitter.utils import find_substring_indices
+from ..utils import find_substring_indices
 
 def make_indices_from_paragraph(paragraph, text):
     """Reconstruct indices of paragraph span in original text."""

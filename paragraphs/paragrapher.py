@@ -1,6 +1,6 @@
 from typing import Union, Optional, List, Protocol, Any
 
-from text_splitter.paragraphs.para_backends import PARA_SEGMENTER_MAP
+from .para_backends import PARA_SEGMENTER_MAP
 
 
 class ParaSegmenterProtocol(Protocol):

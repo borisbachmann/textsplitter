@@ -2,8 +2,8 @@ from typing import List, Any, Tuple, Union, Optional
 
 import pandas as pd
 
-from .constants import id_pattern, n_pattern, PLACEHOLDERS, span_pattern, TEXT_COL, multi_pattern, PARA_COL
-
+from .constants import (id_pattern, n_pattern, PLACEHOLDERS, span_pattern,
+                        TEXT_COL, multi_pattern)
 
 def column_list(base_col, text_col):
     """Make column list for dataframe based upon base column name."""

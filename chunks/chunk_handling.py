@@ -1,51 +1,70 @@
 """
-Module for handling chunking of text data. The main class ChunkSegmenter handles
+Module for handling chunking of text data. The main class ChunkHandler handles
 chunking of different data types (strings, lists of strings, pandas Series and
 DataFrames). It provides an interface that wraps around an internal Chunker
 object that handles the actual chunking process and ensures that the output is
 formatted correctly.
 
-The module also includes a DummyChunkSegmenter class that is loaded if the
-high-level TextSplitter class is initialized without chunking capabilities for
-lightweight sentence and paragraph splitting. The DummyChunkSegmenter returns
-exactly one chunk (the input text) for each input text in the otherwise same
-format as the ChunkSegmenter.
+If no appropriate chunking specs are passed, the ChunkHandler will default to
+using a DummyChunker that simply splits the input data into chunks of a fixed
+size. The ChunkHandler can also be initialized with a custom chunker.
 """
+from typing import Dict, Any, Union, Optional
 
 import pandas as pd
 from tqdm.auto import tqdm
 
-from .chunker import Chunker
-from .chunk_utils import make_indices_from_chunk
-from ..constants import (TEXT_COL, CHUNK_COL, CHUNKS_COL, CHUNK_N_COL,
-                         CHUNK_ID_COL, CHUNK_SPAN_COL)
-from ..utils import column_list, add_id, cast_to_df
+from .chunker import EmbeddingChunker, DummyChunker
+from .utils import make_indices_from_chunk
+from ..constants import TEXT_COL, CHUNK_COL
+from ..utils import add_id, cast_to_df
 
 # Enable progress bars for dataframe .map and .apply methods
 tqdm.pandas()
 
-class ChunkSegmenter:
+class ChunkHandler:
     def __init__(self, chunk_specs, para_specs, sent_specs):
-        model = chunk_specs.get("model")
         specs = self._compile_specs(chunk_specs, para_specs, sent_specs)
-        self.chunker = Chunker(model, specs)
+        self.chunker = self._load_chunker(specs)
 
-    def _compile_specs(self, chunk_specs, para_specs, sent_specs):
-        specs = {}
+    def _compile_specs(self,
+                       chunk_specs: Optional[Dict[str, Any]] = None,
+                       para_specs: Optional[Dict[str, Any]] = None,
+                       sent_specs: Optional[Dict[str, Any]] = None
+                       ) -> Dict[str, Any]:
+        chunk_specs = chunk_specs or {}
+        para_specs = para_specs or {}
+        sent_specs = sent_specs or {}
 
-        # resolve chunking specs
-        specs["chunker"] = chunk_specs.get("chunker", "linear")
-        chunk_specs = {k: v for k, v in chunk_specs.items()
-                       if k not in ["chunker", "model"]}
-        specs["chunk_specs"] = chunk_specs
+        # merge all specs
+        specs = chunk_specs | para_specs | sent_specs
 
-        # resolve paragraphing and sentencizing specs
-        if para_specs:
-            specs.update(para_specs)
-        if sent_specs:
-            specs.update(sent_specs)
+        # ensure default chunker is set
+        if not callable(specs.get("chunker", None)):
+            if "model" in specs:
+                print("No chunker specified. Using linear chunker.")
+                specs.setdefault("chunker", "linear")
+            else:
+                print("No chunker or model specified. Using dummy chunker.")
+                specs.setdefault("chunker", "dummy")
 
         return specs
+
+    def _load_chunker(self,
+                      specs: Dict[str, Any]
+                      ) -> Union[EmbeddingChunker, DummyChunker, callable]:
+        """
+        Based upon specs load the appropriate chunker with the correct
+        parameters.
+        """
+        # Loading callable is not implemented yet – resolve how to handle para
+        # and sent specs in specs
+        if callable(specs["chunker"]):
+            return specs["chunker"](specs)
+        elif specs["chunker"] == "dummy":
+            return DummyChunker()
+        else:
+            return EmbeddingChunker(specs)
 
     def split(self,
               text: str,
@@ -76,7 +95,8 @@ class ChunkSegmenter:
             # prune for empty chunks
             chunks = [c for c in chunks if c]
             indices = [make_indices_from_chunk(c, text) for c in chunks]
-            chunks = self.chunker._compile_chunks(chunks, ensure_separators)
+            chunks = self.chunker._compile_chunks(
+                chunks, ensure_separators=ensure_separators)
             chunks = self.chunker._postprocess(chunks)
             chunks = list(zip(indices, chunks))
         else:
@@ -128,7 +148,8 @@ class ChunkSegmenter:
             indices = [[make_indices_from_chunk(c, text) for c in chunk_list]
                        for text, chunk_list in iterator]
 
-            chunks = self.chunker._compile_chunks(chunks, ensure_separators)
+            chunks = self.chunker._compile_chunks(
+                chunks, ensure_separators=ensure_separators)
             chunks = self.chunker._postprocess(chunks)
             chunks = [list(zip(index_list, chunk_list))
                       for index_list, chunk_list in zip(indices, chunks)]
@@ -174,70 +195,6 @@ class ChunkSegmenter:
                                  as_tuples=True,
                                  include_span=include_span,
                                  **kwargs
-                                 )
-
-        return cast_to_df(
-            input_df=input_df,
-            segments=chunks,
-            base_column=CHUNK_COL,
-            text_column=column,
-            drop_text=drop_text,
-            mathematical_ids=mathematical_ids,
-            include_span=include_span
-        )
-
-
-class DummyChunkSegmenter:
-    def __init__(self):
-        pass
-
-    def split(self,
-              text: str,
-              as_tuples: bool = False,
-              include_span: bool = False,
-              **kwargs
-              ) -> list:
-        chunks = [text]
-
-        if include_span:
-            indices = [(0, len(text))]
-            chunks = list(zip(indices, chunks))
-
-        if as_tuples:
-            chunks = add_id(chunks)
-
-        return chunks
-
-    def split_list(self,
-                   texts: list,
-                   as_tuples: bool = False,
-                   include_span: bool = False,
-                   **kwargs
-                   ) -> list:
-        chunks = [[t] for t in texts]
-
-        if include_span:
-            indices = [[((0, len(text)))] for text in texts]
-            chunks = [list(zip(index_list, chunk_list))
-                     for index_list, chunk_list in zip(indices, chunks)]
-
-        if as_tuples:
-            chunks = [add_id(chunk_list) for chunk_list in chunks]
-
-        return chunks
-
-    def split_df(self,
-                 input_df: pd.DataFrame,
-                 column: str = TEXT_COL,
-                 drop_text: bool = True,
-                 mathematical_ids: bool = False,
-                 include_span: bool = False,
-                 **kwargs
-                 ) -> pd.DataFrame:
-        texts = input_df[column].tolist()
-        chunks = self.split_list(texts,
-                                 as_tuples=True,
-                                 include_span=include_span
                                  )
 
         return cast_to_df(

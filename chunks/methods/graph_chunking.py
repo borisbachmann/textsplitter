@@ -4,15 +4,15 @@ from collections import defaultdict
 import community as community_louvain
 import networkx as nx
 
-from text_splitter.chunks.chunk_utils import calculate_similarity, find_overlap, sigmoid
-
+from ..utils import calculate_similarity, find_overlap, sigmoid
+from ..constants import DEFAULT_K, DEFAULT_RESOLUTION, DEFAULT_RANDOM_STATE
 
 def graph_chunking(
         sentences: list,
         embeddings: list,
-        K: int = 5,
-        resolution: float = 1.0,
-        random_state: int = 0
+        K: int = DEFAULT_K,
+        resolution: float = DEFAULT_RESOLUTION,
+        random_state: int = DEFAULT_RANDOM_STATE
         ) -> list:
     """Chunking strategy that accounts for a lookbehind and lookahead of K
     embeddings to avoid splitting at single "filling" embeddings.

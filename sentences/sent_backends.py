@@ -5,8 +5,6 @@ import spacy
 from tqdm.auto import tqdm
 from wtpsplit import SaT
 
-from text_splitter.constants import PARA_COL
-
 
 class SpacySentencizer:
     """

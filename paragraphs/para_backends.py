@@ -3,10 +3,9 @@ from typing import Optional, Dict, List
 
 from tqdm.auto import tqdm
 
-from text_splitter.constants import BULLETS
-from text_splitter.patterns import (PARAGRAPH_PATTERN_SIMPLE,
-                                    ENUM_PATTERN_NO_DATE_DE, PARAGRAPH_PATTERN)
-
+from .constants import BULLETS
+from .patterns import (PARAGRAPH_PATTERN_SIMPLE, ENUM_PATTERN_NO_DATE_DE,
+                       PARAGRAPH_PATTERN)
 
 class CleanParagrapher:
     """

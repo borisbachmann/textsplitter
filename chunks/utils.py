@@ -9,8 +9,8 @@ from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
 from transformers import AutoTokenizer
 
-from text_splitter.utils import find_substring_indices
-from ..embeddings import EmbeddingModel
+from ..utils import find_substring_indices
+from .embeddings import EmbeddingModel
 
 
 class TokenCounter:
