@@ -1,17 +1,31 @@
 import pandas as pd
 from tqdm.auto import tqdm
 
-from ..dataframes.columns import TEXT_COL, SENT_COL
-from ..paragraphs.para_handling import ParagraphHandler
+from ..dataframes import columns
+from ..paragraphs.handling import ParagraphHandler
 from .sentencizer import Sentencizer
 from ..utils import add_id, find_substring_indices
-from text_splitter.dataframes.functions import cast_to_df
+from ..dataframes.functions import cast_to_df
 
 # Enable progress bars for dataframe .map and .apply methods
 tqdm.pandas()
 
 
 class SentenceHandler:
+    """
+    Class for handling sentence splitting of text data. Aims to split text data
+    into sentences as perceived by human readers. Texts are first split into
+    paragraphs before being processed into sentences. Paragraph and sentence
+    splitting is delegated to dedicated classes under the hood. Can handle
+    single strings, lists of strings, and pandas dataframes with a text data
+    column and return output of an according, more fine-grained type: Single
+    lists of strings, lists of lists of strings, or dataframes with one row per
+    sentence.
+
+    Args:
+        sent_specs (dict): Specifications for sentence splitting.
+        para_specs (dict): Specifications for paragraph splitting.
+    """
     def __init__(self, sent_specs, para_specs):
         if sent_specs is None:
             sent_specs = {}
@@ -36,10 +50,22 @@ class SentenceHandler:
               include_span: bool = False,
               **kwargs
               ) -> list:
-        """Split a string containing natural language data into sentences. Returns
-        a list of sentences as strings. Optionally, return a list of tuples with
-        sentence index and sentence as strings. Uses spacy for sentence splitting
-        and requires a spacy language model as input."""
+        """
+        Split a string containing natural language data into sentences. Returns
+        a list of sentences as strings. Optionally, return a list of tuples
+        with sentence index and sentence as strings and/or start and end indices
+        of sentences in the original text.
+
+        Args:
+            text: str: Text to split into sentences.
+            as_tuples: bool: Return sentences as tuples with index and sentence.
+            include_span: bool: Return sentences as tuples with index, start and
+                end indices of sentence in original text.
+            kwargs: Additional arguments for sentencizer
+
+        Returns:
+            list: List of sentences as strings or tuples.
+        """
         drop_placeholders = kwargs.pop("drop_placeholders", [])
 
         # split into paragraphs first
@@ -127,26 +153,32 @@ class SentenceHandler:
 
     def split_df(self,
                  input_df: pd.DataFrame,
-                 column: str = TEXT_COL,
+                 text_column: str = columns.TEXT_COL,
                  drop_text: bool = True,
                  mathematical_ids: bool = False,
                  include_span: bool = False,
                  **kwargs
                  ) -> pd.DataFrame:
         """
-        In a pandas dataframe containing a column with data data, insert three
-        new columns with individual embeddings derived from data data, number of
-        embeddings per data, and embeddings IDs. DataFrame is exploded to one row
-        per sentence, keeping sentence together with original data data.
+        In a pandas dataframe containing a column with text data, insert three
+        new columns with individual embeddings derived from text data, number of
+        embeddings per data, and embeddings IDs. DataFrame is exploded to one
+        row per sentence, keeping sentence together with original text data.
         Optionally, drop the original data column.
 
-        Sentences are split with the help of spaCy NLP, therefore an NLP object
-        is required as input. Before processing, data are split into paraggraphs
-        by regex before processing. The default pattern is simple, splitting at
-        newlines, optionally a more complex pattern tailored to German data is
-        employed.
+        Args:
+            input_df (pd.DataFrame): DataFrame with original text data
+            text_column (str): Column name with text data
+            drop_text (bool): Whether to drop the original text column
+            mathematical_ids (bool): Whether to increment data IDs by 1 to
+                avoid 0
+            include_span (bool): Whether to include span information in output
+            kwargs: Additional arguments for sentencizer
+
+        Returns:
+            pd.DataFrame: DataFrame with sentence data as rows
         """
-        texts = input_df[column].tolist()
+        texts = input_df[text_column].tolist()
         sentences = self.split_list(texts,
                                     as_tuples=True,
                                     include_span=include_span,
@@ -156,8 +188,8 @@ class SentenceHandler:
         return cast_to_df(
             input_df=input_df,
             segments=sentences,
-            base_column=SENT_COL,
-            text_column=column,
+            base_column=columns.SENT_COL,
+            text_column=text_column,
             drop_text=drop_text,
             mathematical_ids=mathematical_ids,
             include_span=include_span,

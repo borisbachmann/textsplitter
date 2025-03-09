@@ -18,10 +18,10 @@ import pandas as pd
 
 from tqdm.auto import tqdm
 
-from .dataframes.columns import TEXT_COL
-from .chunks.chunk_handling import ChunkHandler
-from .paragraphs.para_handling import ParagraphHandler
-from .sentences.sent_handling import SentenceHandler
+from .dataframes import columns
+from .chunks.handling import ChunkHandler
+from .paragraphs.handling import ParagraphHandler
+from .sentences.handling import SentenceHandler
 
 # register pandas
 tqdm.pandas()
@@ -72,7 +72,7 @@ class TextSplitter:
             self,
             data: Union[str, list, pd.Series, pd.DataFrame],
             mode: str,
-            column: Optional[str] = TEXT_COL,
+            column: Optional[str] = columns.TEXT_COL,
             as_tuples: Optional[bool] = False,
             include_span: Optional[bool] = False,
             mathematical_ids: Optional[bool] = False,
@@ -115,7 +115,7 @@ class TextSplitter:
 
     def sentences(self,
                   data: Union[str, list, pd.Series, pd.DataFrame],
-                  column: Optional[str] = TEXT_COL,
+                  column: Optional[str] = columns.TEXT_COL,
                   as_tuples: Optional[bool] = False,
                   include_span: Optional[bool] = False,
                   mathematical_ids: Optional[bool] = False,
@@ -155,7 +155,7 @@ class TextSplitter:
 
     def paragraphs(self,
                    data: Union[str, list, pd.Series, pd.DataFrame],
-                   column: Optional[str] = TEXT_COL,
+                   column: Optional[str] = columns.TEXT_COL,
                    as_tuples: Optional[bool] = False,
                    include_span: Optional[bool] = False,
                    mathematical_ids: Optional[bool] = False,
@@ -197,7 +197,7 @@ class TextSplitter:
 
     def chunks(self,
                data: Union[str, list, pd.Series, pd.DataFrame],
-               column: Optional[str] = TEXT_COL,
+               column: Optional[str] = columns.TEXT_COL,
                as_tuples: Optional[bool] = False,
                include_span: Optional[bool] = False,
                mathematical_ids: Optional[bool] = False,
@@ -238,7 +238,7 @@ class TextSplitter:
     def _process_data(self,
                       data: Union[str, list, pd.Series, pd.DataFrame],
                       mode: str,
-                      column: Optional[str] = TEXT_COL,
+                      column: Optional[str] = columns.TEXT_COL,
                       as_tuples: Optional[bool] = False,
                       include_span: Optional[bool] = False,
                       mathematical_ids: Optional[bool] = False,
@@ -298,7 +298,7 @@ class TextSplitter:
                                                   **common_args))
 
         def process_df(df):
-            return processor.split_df(input_df=df, column=column,
+            return processor.split_df(input_df=df, text_column=column,
                                       include_span=include_span,
                                       drop_text=drop_text,
                                       mathematical_ids=mathematical_ids,

@@ -1,6 +1,6 @@
 from typing import Union, List, Protocol, Optional
 
-from .sent_backends import SENT_SEGMENTER_MAP
+from .backends import SENT_SEGMENTER_MAP
 
 class SentSegmenterProtocol(Protocol):
     """

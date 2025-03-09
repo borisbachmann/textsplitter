@@ -3,9 +3,9 @@ from tqdm.auto import tqdm
 
 from .utils import make_indices_from_paragraph
 from .paragrapher import Paragrapher
-from ..dataframes.columns import TEXT_COL, PARA_COL
+from ..dataframes import columns
 from ..utils import add_id, clean_placeholders
-from text_splitter.dataframes.functions import cast_to_df
+from ..dataframes.functions import cast_to_df
 
 # Enable progress bars for dataframe .map and .apply methods
 tqdm.pandas()
@@ -120,23 +120,31 @@ class ParagraphHandler:
     def split_df(
         self,
         input_df: pd.DataFrame,
-        column: str = TEXT_COL,
+        text_column: str = columns.TEXT_COL,
         drop_text: bool = True,
         mathematical_ids: bool = False,
         include_span: bool = False,
         **kwargs
         ) -> pd.DataFrame:
         """
-        In a pandas dataframe containing a column with data data, insert three
-        new columns with individual paragraphs derived from data data, number of
+        In a pandas dataframe containing a column with text data, insert three
+        new columns with individual paragraphs derived from text data, number of
         paragraphs per data, and paragraph IDs. DataFrame is exploded to one row
-        per paragraph, keeping paragraphs together with original data data.
+        per paragraph, keeping paragraphs together with original text data.
         Optionally, drop the original data column.
 
-        Paragraphs are split based on a function passed as an argument. If no
-        function is provided, a standard function will be selected under the hood.
+        Args:
+            input_df: pd.DataFrame: DataFrame containing text data.
+            text_column: str: Column containing text data.
+            drop_text: bool: Drop the original text column if True.
+            mathematical_ids: bool: Include mathematical IDs in output if True.
+            include_span: bool: Include span information in output if True.
+
+
+
+
         """
-        texts = input_df[column].tolist()
+        texts = input_df[text_column].tolist()
         paragraphs = self.split_list(texts,
                                      as_tuples=True,
                                      include_span=include_span,
@@ -146,8 +154,8 @@ class ParagraphHandler:
         return cast_to_df(
             input_df=input_df,
             segments=paragraphs,
-            base_column=PARA_COL,
-            text_column=column,
+            base_column=columns.PARA_COL,
+            text_column=text_column,
             drop_text=drop_text,
             mathematical_ids=mathematical_ids,
             include_span=include_span

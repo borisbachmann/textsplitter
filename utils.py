@@ -6,7 +6,10 @@ from .constants import (PLACEHOLDERS)
 from .dataframes.columns import n_pattern
 
 
-def increment_ids(tuple_list, increment):
+def increment_ids(
+        tuple_list: List[Tuple[int, Any]],
+        increment: int
+        ) -> List[Tuple[int, Any]]:
     """
     For tuples containing an index as first element and an arbitrary number of
     elements following, increment the index by a specified amount.
@@ -90,7 +93,10 @@ def clean_placeholders(
                          "list of tuples.")
 
 
-def find_substring_indices(text, substrings):
+def find_substring_indices(
+        text: str,
+        substrings: List[str]
+        ) -> List[Tuple[int, int]]:
     """
     Find the start and end indices of a list of substrings in a text.
 

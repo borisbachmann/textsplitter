@@ -1,6 +1,6 @@
 from typing import Union, Optional, List, Protocol, Any
 
-from .para_backends import PARA_SEGMENTER_MAP
+from .backends import PARA_SEGMENTER_MAP
 
 
 class ParaSegmenterProtocol(Protocol):

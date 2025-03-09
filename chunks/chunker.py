@@ -3,10 +3,10 @@ from typing import Union, List, Protocol, Dict, Any, Optional
 from sentence_transformers import SentenceTransformer
 from tqdm.auto import tqdm
 
-from .chunk_backends import CHUNK_BACKENDS_MAP, EmbeddingBackendProtocol
+from .backends import CHUNK_BACKENDS_MAP, EmbeddingBackendProtocol
 from .utils import make_text_from_chunk
 from text_splitter.chunks.embeddings import EmbeddingModel
-from ..sentences.sent_handling import SentenceHandler
+from ..sentences.handling import SentenceHandler
 from ..utils import uniform_depth
 
 

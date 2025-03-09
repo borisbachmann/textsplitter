@@ -1,7 +1,26 @@
+from typing import Tuple
+
 from ..utils import find_substring_indices
 
-def make_indices_from_paragraph(paragraph, text):
-    """Reconstruct indices of paragraph span in original text."""
+def make_indices_from_paragraph(
+        paragraph: str,
+        text: str
+        ) -> Tuple[int, int]:
+    """
+    Reconstruct indices of paragraph span in original text.
+
+    Can handle paragraphs that consist of synthetically merged original
+    line-break-based paragraphs (as e.g. in the "clean" paragrapher backend.
+    Strings retrieved from these indices might then not be identical to the
+    input paragraph string.
+
+    Args:
+        paragraph (str): Paragraph to reconstruct indices for.
+        text (str): Original text containing paragraph.
+
+    Returns:
+        Tuple[int, int]: Start and end indices of paragraph in original text.
+    """
     # Split paragraph into lines as some paragraphers might re-merge original
     # paragraphs into a single string
     original_paragraphs = paragraph.splitlines()
