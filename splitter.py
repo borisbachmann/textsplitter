@@ -18,7 +18,7 @@ import pandas as pd
 
 from tqdm.auto import tqdm
 
-from .constants import TEXT_COL
+from .dataframes.columns import TEXT_COL
 from .chunks.chunk_handling import ChunkHandler
 from .paragraphs.para_handling import ParagraphHandler
 from .sentences.sent_handling import SentenceHandler

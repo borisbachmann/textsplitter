@@ -3,8 +3,9 @@ from tqdm.auto import tqdm
 
 from .utils import make_indices_from_paragraph
 from .paragrapher import Paragrapher
-from ..constants import TEXT_COL, PARA_COL
-from ..utils import add_id, clean_placeholders, cast_to_df
+from ..dataframes.columns import TEXT_COL, PARA_COL
+from ..utils import add_id, clean_placeholders
+from text_splitter.dataframes.functions import cast_to_df
 
 # Enable progress bars for dataframe .map and .apply methods
 tqdm.pandas()

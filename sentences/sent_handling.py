@@ -1,10 +1,11 @@
 import pandas as pd
 from tqdm.auto import tqdm
 
-from ..constants import TEXT_COL, SENT_COL
+from ..dataframes.columns import TEXT_COL, SENT_COL
 from ..paragraphs.para_handling import ParagraphHandler
 from .sentencizer import Sentencizer
-from ..utils import add_id, find_substring_indices, cast_to_df
+from ..utils import add_id, find_substring_indices
+from text_splitter.dataframes.functions import cast_to_df
 
 # Enable progress bars for dataframe .map and .apply methods
 tqdm.pandas()

@@ -145,7 +145,7 @@ class DummyChunker:
                      **kwargs
                      ) -> List[List[str]]:
         """
-        Do exactly nothing with chunk data.
+        Return data as received and ignore any additional arguments.
 
         Args:
             data (List[List[str]]): List of chunks as lists of strings.

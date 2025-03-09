@@ -16,8 +16,9 @@ from tqdm.auto import tqdm
 
 from .chunker import EmbeddingChunker, DummyChunker
 from .utils import make_indices_from_chunk
-from ..constants import TEXT_COL, CHUNK_COL
-from ..utils import add_id, cast_to_df
+from ..dataframes.columns import TEXT_COL, CHUNK_COL
+from ..utils import add_id
+from text_splitter.dataframes.functions import cast_to_df
 
 # Enable progress bars for dataframe .map and .apply methods
 tqdm.pandas()
