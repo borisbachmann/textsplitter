@@ -8,7 +8,7 @@ class ParaSegmenterProtocol(Protocol):
     Protocol for custom paragraph segmenters to implement.
 
     Args:
-        data: List[str]: List of strings to split into sentences.
+        data (List[str]): List of strings to split into sentences.
 
     Returns:
         List[List[str]]: List of lists of sentences as strings with one
@@ -30,9 +30,9 @@ class Paragrapher:
     implements the SegmenterProtocol can be passed.
 
     Args:
-        segmenter: Union[str, SegmenterProtocol]: Name of a built-in segmenter
+        segmenter (Union[str, SegmenterProtocol]): Name of a built-in segmenter
             or a custom segmenter callable implementing the SegmenterProtocol.
-        language_or_model: Optional[str]: specs for built-in segmenters.
+        language_or_model (Optional[str]): specs for built-in segmenters.
     """
     def __init__(self,
                  segmenter: Union[str, ParaSegmenterProtocol],
@@ -64,9 +64,9 @@ class Paragrapher:
         whitespace and empty strings are removed.
 
         Args:
-        data: Union[str, List[str]]: Text to split into paragraphs. If a list of
+        data (Union[str, List[str]]): Text to split into paragraphs. If a list of
             strings, each string is split into paragraphs separately.
-        show_progress: bool: Show progress bar if True.
+        show_progress (bool): Show progress bar if True.
 
         Returns:
         Union[List[str], List[List[str]]]: List of paragraphs as strings (if
@@ -98,6 +98,14 @@ class Paragrapher:
         Clear away irregularities in the paragraphs lists produced by different
         paragraphs segmenters. Removes leading and trailing whitespace and empty
         strings.
+
+        Args:
+            paragraphs (List[List[str]]): List of lists of paragraphs as
+                strings.
+
+        Returns:
+            List[List[str]]: List of lists of paragraphs as strings with leading
+                and trailing whitespace removed and empty strings removed.
         """
         return [[s.strip() for s in para_list if s.strip()]
                 for para_list in paragraphs]

@@ -1,3 +1,5 @@
+from typing import Dict, Any, Union, List, Tuple
+
 import pandas as pd
 from tqdm.auto import tqdm
 
@@ -12,7 +14,7 @@ tqdm.pandas()
 
 
 class ParagraphHandler:
-    def __init__(self, specs):
+    def __init__(self, specs: Dict[str, Any]):
         if specs is None:
             specs = {}
         self.splitter = self._initialize_splitter(
@@ -37,14 +39,23 @@ class ParagraphHandler:
             as_tuples: bool = False,
             include_span: bool = False,
             **kwargs
-            ) -> list:
+            ) -> Union[List[str], List[Tuple[int, str]],
+                       List[Tuple[Tuple[int, int], str]]
+                      ]:
         """Split a string containing natural language data into paragraphs.
         Returns a list of paragraphs. Optionally, return a list of tuples with
         paragraph ids and data.
 
-        Paragraphs are split based on a function passed as an argument. If no
-        function is provided, a standard function will be selected under the
-        hood.
+        Args:
+            text (str): Text to split into paragraphs
+            as_tuples (bool): Return paragraphs as tuples idx, paragraph if True.
+            include_span (bool): Include span information in output if True.
+            **kwargs: Additional keyword arguments to be passed to the splitter.
+
+        Returns:
+            Union[List[str], List[Tuple[int, str]], List[Tuple[Tuple[int, int],
+            str]]: List of paragraphs as strings, or list of tuples including
+            ids and/or span information.
         """
         drop_placeholders = kwargs.pop("drop_placeholders", [])
 

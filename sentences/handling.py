@@ -1,9 +1,11 @@
+from typing import Union, List, Tuple
+
 import pandas as pd
 from tqdm.auto import tqdm
 
 from ..dataframes import columns
 from ..paragraphs.handling import ParagraphHandler
-from .sentencizer import Sentencizer
+from .sentencizer import Sentencizer, SentSegmenterProtocol
 from ..utils import add_id, find_substring_indices
 from ..dataframes.functions import cast_to_df
 
@@ -34,22 +36,41 @@ class SentenceHandler:
 
         self.paragrapher = ParagraphHandler(para_specs)
 
-    def _initialize_splitter(self, specs):
-        if isinstance(specs, tuple):
-            return Sentencizer(*specs)
-        elif callable(specs):
-            return Sentencizer(specs)
+    def _initialize_splitter(
+            self,
+            sentencizer: Union[tuple, SentSegmenterProtocol]
+            ) -> Sentencizer:
+        """
+        Load internal Sentencizer based upon the sentencizer specifications #
+        passed as argument.
+
+        Args:
+            sentencizer (Union[tuple, SentSegmenterProtocol]): Sentencizer
+                specifications. Can be a tuple of strings specifying a built-in
+                type with a corresponding language or model, or a custom
+                callable implementing the SentSegmenterProtocol.
+
+        Returns:
+            Sentencizer: Sentencizer instance
+        """
+        if isinstance(sentencizer, tuple):
+            return Sentencizer(*sentencizer)
+        elif callable(sentencizer):
+            return Sentencizer(sentencizer)
         else:
             raise ValueError("Sentencizer must be a tuple of strings "
-                             "specifying a  built-in type with language/model "
-                             "or a custom callable.")
+                             "specifying a built-in type with language/model "
+                             "or a custom callable implementing the "
+                             "SentSegmenterProtocol.")
 
     def split(self,
               text: str,
               as_tuples: bool = False,
               include_span: bool = False,
               **kwargs
-              ) -> list:
+              ) -> Union[List[str], List[Tuple[int, str]],
+                         List[Tuple[Tuple[int, int], str]]
+                        ]:
         """
         Split a string containing natural language data into sentences. Returns
         a list of sentences as strings. Optionally, return a list of tuples
@@ -64,7 +85,9 @@ class SentenceHandler:
             kwargs: Additional arguments for sentencizer
 
         Returns:
-            list: List of sentences as strings or tuples.
+            Union[List[str], List[Tuple[int, str]], List[Tuple[Tuple[int, int],
+                str]]: List of sentences as strings, or list of tuples including
+                ids and/or span information.
         """
         drop_placeholders = kwargs.pop("drop_placeholders", [])
 
@@ -94,7 +117,9 @@ class SentenceHandler:
                    as_tuples: bool = False,
                    include_span: bool = False,
                    **kwargs
-                   ) -> list:
+                   ) -> Union[List[List[str]], List[List[Tuple[int, str]]],
+                              List[List[Tuple[Tuple[int, int], str]]]
+                              ]:
         """
         Split a list of strings containing natural language data into sentences.
         Returns a list of sentences per text as lists of strings. Optionally,
@@ -102,13 +127,16 @@ class SentenceHandler:
         end indices of sentences in the original text.
 
         Args:
-            texts: list: List of strings to split into sentences.
-            as_tuples: bool: Return sentences as tuples with index and sentence.
-            include_span: bool: Return sentences as tuples with index, start and
+            texts {list}: List of strings to split into sentences.
+            as_tuples {bool}: Return sentences as tuples with index and sentence.
+            include_span {bool}: Return sentences as tuples with index, start and
                 end indices of sentence in original text.
 
         Returns:
-            list: List of lists of sentences as strings or tuples.
+            Union[List[List[str]], List[List[Tuple[int, str]]],
+                List[List[Tuple[Tuple[int, int], str]]]]: List of lists with
+                one list for each original text, including sentences as strings
+                or tuples including ids and/or span information.
         """
         drop_placeholders = kwargs.pop("drop_placeholders", [])
         show_progress = kwargs.pop("show_progress", False)
