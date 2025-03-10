@@ -14,6 +14,30 @@ def linear_chunking(
         max_length: Optional[int] = DEFAULT_MAX_LENGTH,
         threshold: Optional[float] = DEFAULT_THRESHOLD
         ) -> List[List[str]]:
+    """"
+    Create semantic chunks from a list of sentences and corresponding
+    embeddings. Chunks are created by linearly moving through the list of
+    sentences and adding up sentences until a certain similiarity threshold or
+    maximum length is breached. Similarity can be calculated as either the
+    pairwise similarity of consecutive sentences or the cumulative similarity
+    of all sentences in the current chunk.
+
+    Args:
+        sentences (List[str]): A list of consecutive sentences
+        embeddings (List[NDArray]): A list of embeddings in the same order as
+            original sentences
+        length_metric (Callable): A function that takes a sentence and returns
+            its length
+        similarity_metric (str): Whether similarity should be calculated
+            'pairwise' or 'cumulative'
+        max_length (Optional[int]): The maximum length of the chunk according
+            to the specified metric.
+        threshold (Optional[float]): The minimum similarity for sentences to be
+            added to the current chunk.
+
+    Returns:
+        List[List[str]: A list with chunks as lists of sentences.
+    """
 
     def check_threshold_reached():
         if similarity_metric == "cumulative":
