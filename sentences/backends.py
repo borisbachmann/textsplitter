@@ -1,3 +1,23 @@
+"""
+The module provides classes for built-in sentence splitting methods as well as
+a protocol for custom sentence segmenters to implement.
+
+The SaT sentence splitter and models are described in:
+Frohmann, M. et al. (2024): "Segment Any Text: A Universal Approach for Robust,
+Efficient and Adaptable Sentence Segmentation", in: Al-Onaizan, Y. et. al.
+(eds.): "Proceedings of the 2024 Conference on Empirical Methods in Natural
+Language Processing", pp. 11908--11941
+("https://aclanthology.org/2024.emnlp-main.665")
+
+and
+
+Minixhofer, B. et al. (2023): "Where{'}s the Point? Self-Supervised
+Multilingual Punctuation-Agnostic Sentence Segmentation", in: "Proceedings of
+the 61st Annual Meeting of the Association for Computational Linguistics
+(Volume 1: Long Papers)", pp. 7215--7235
+(https://aclanthology.org/2023.acl-long.398)
+"""
+
 from typing import List, Protocol
 
 import pysbd
