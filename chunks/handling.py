@@ -143,12 +143,12 @@ class ChunkHandler:
         parameters.
 
         Args:
-            chunker: Union[str, ChunkerProtocol, EmbeddingChunkerProtocol]:
+            chunker (Union[str, ChunkerProtocol, EmbeddingChunkerProtocol]):
                 Chunker to load
-            chunker_type: Optional[str]: Type of chunker if known chunker class
-            required_specs: Dict[str, Any]: Required parameters for known
+            chunker_type (Optional[str]): Type of chunker if known chunker class
+            required_specs (Dict[str, Any]): Required parameters for known
                 chunker classes
-            remaining_specs: Dict[str, Any]: Remaining parameters for chunker
+            remaining_specs (Dict[str, Any]): Remaining parameters for chunker
         """
         if chunker == "dummy":
             return DummyChunker()
@@ -178,10 +178,10 @@ class ChunkHandler:
         original text.
 
         Args:
-            text: str: Text to split into chunks
-            as_tuples: bool: Return chunks as tuples with index and text
-            include_span: bool: Include start and end indices of chunks
-            kwargs: dict: Additional arguments for chunker
+            text (str): Text to split into chunks
+            as_tuples (bool): Return chunks as tuples with index and text
+            include_span (bool): Include start and end indices of chunks
+            kwargs (dict): Additional arguments for chunker
 
         Returns:
             list: List of chunks as strings or tuples
@@ -216,19 +216,23 @@ class ChunkHandler:
                    include_span: bool = False,
                    **kwargs
                    ) -> list:
-        """Split a list of strings containing natural language data into chunks.
+        """
+        Split a list of strings containing natural language data into chunks.
         Returns a list of chunks per text as lists of strings. Optionally,
         returns lists of tuples also including chunk index and/or start and end
         indices of chunks in the original text.
 
         Args:
-            texts: list: List of texts to split into chunks
-            as_tuples: bool: Return chunks as tuples with index and text
-            include_span: bool: Include start and end indices of chunks
-            kwargs: dict: Additional arguments for chunker
+            texts (list): List of texts to split into chunks
+            as_tuples (bool): Return chunks as tuples with index and text
+            include_span (bool): Include start and end indices of chunks
+            kwargs (dict): Additional arguments for chunker
 
         Returns:
-            list: List of chunks as lists strings or tuples
+            Union[List[List[str]], List[List[Tuple[int, str]]],
+                List[List[Tuple[Tuple[int, int], str]]]]: List of chunks
+                per text as list of strings or tuples including paragraph ids
+                and span indices.
         """
         show_progress = kwargs.get("show_progress", False)
 
@@ -280,12 +284,13 @@ class ChunkHandler:
         the output.
 
         Args:
-            input_df: pd.DataFrame containing data data
-            text_column: name of the column containing data data
-            drop_text: whether to drop the original data column
-            mathematical_ids: whether to increment chunk IDs by 1 to avoid 0
-            include_span: whether to include start and end indices of chunks
-            kwargs: dict: Additional arguments for chunker
+            input_df (pd.DataFrame): DataFrame containing data data
+            text_column (str): Name of the column containing data data
+            drop_text (bool): Whether to drop the original data column
+            mathematical_ids (bool): whether to increment chunk IDs by 1 to
+                avoid 0
+            include_span (bool): Include start and end indices of chunks
+            kwargs (dict): Additional arguments for chunker
 
         Returns:
             pd.DataFrame: DataFrame with chunks as rows

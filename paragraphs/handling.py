@@ -82,7 +82,8 @@ class ParagraphHandler:
             as_tuples: bool = False,
             include_span: bool = False,
             **kwargs
-            ) -> list:
+            ) -> Union[List[List[str]], List[List[Tuple[int, str]]],
+                       List[List[Tuple[Tuple[int, int], str]]]]:
         """
         Split a list of strings containing natural language data into
         paragraphs. Returns a list of ppragraphs per text as lists of strings.
@@ -95,8 +96,10 @@ class ParagraphHandler:
             include_span: bool: Include span information in output if True.
 
         Returns:
-            list: List of paragraphs per text as list of strings or tuples
-            with paragraph ids and data.
+            Union[List[List[str]], List[List[Tuple[int, str]]],
+                List[List[Tuple[Tuple[int, int], str]]]]: List of paragraphs
+                per text as list of strings or tuples including paragraph ids
+                and span indices.
         """
 
         drop_placeholders = kwargs.pop("drop_placeholders", [])

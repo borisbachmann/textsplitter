@@ -1,72 +1,27 @@
 import re
-from typing import Union, Optional
+from typing import Optional
 
 import math
 
 from numpy.typing import NDArray
-from bert_score import score
-from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
-from transformers import AutoTokenizer
 
 from ..utils import find_substring_indices
-from .embeddings import EmbeddingModel
-
-
-class TokenCounter:
-    """
-    Count tokens in a text using a Hugging Face tokenizer or SentenceTransformer.
-    """
-
-    def __init__(self,
-                 model: Union[str, EmbeddingModel, SentenceTransformer]):
-        self.tokenizer = self._make_tokenizer(model)
-
-    def __call__(self, text: str) -> int:
-        tokens = self.tokenizer(text)
-        return len(tokens["input_ids"])
-
-    def _make_tokenizer(self,
-                        model: Union[str, EmbeddingModel, SentenceTransformer]):
-        """Create a tokenizer from a model. If string, load tokenizer from
-        Hugging Face, if EmbeddingModel or SentenceTransformer, use the
-        tokenizer attribute."""
-        if isinstance(model, str):
-            return AutoTokenizer.from_pretrained(model)
-        elif isinstance(model, EmbeddingModel):
-            return model.tokenizer
-        elif isinstance(model, SentenceTransformer):
-            return model.tokenizer
-        else:
-            raise ValueError(f"Unsupported model type: {type(model)}")
-
 
 def calculate_similarity(
         embedding_1: NDArray,
         embedding_2: NDArray) \
         -> float:
-    """Calculate cosine similarity between two embeddings."""
+    """Calculate cosine similarity between two embeddings.
+
+    Args:
+        embedding_1 (NDArray): First embedding
+        embedding_2 (NDArray): Second embedding
+
+    Returns:
+        float: Cosine similarity between the two embeddings
+    """
     return cosine_similarity([embedding_1], [embedding_2])[0][0]
-
-
-# adpted from https://towardsdatascience.com/text-tiling-done-right-building-solid-foundations-for-your-personal-llm-e70947779ac1
-def bert_similarity(
-        sentence_1: str,
-        sentence_2: str
-        ) -> float:
-    """Calculate similarity between two sentences using BERT."""
-    # BERTScore returns three values: Precision, Recall, and F1 Score
-    # Here we use F1 Score as the similarity measure
-    sentence_1, sentence_2 = [sentence_1], [sentence_2]
-    _, _, f1_score = score(sentence_1, sentence_2, lang='de',
-                           model_type='bert-base-uncased')
-
-    # f1_score is a tensor with the F1 score for each pair of sentences.
-    # Since we only have one pair, we take the first (and only) element.
-    similarities = [f1_score[i].item() for i in range(len(sentence_1))]
-
-    return similarities[0]
-
 
 # adopted from https://towardsdatascience.com/text-tiling-done-right-building-solid-foundations-for-your-personal-llm-e70947779ac1
 def vec_intersection(vec1, vec2, preserve_order=False):
@@ -133,8 +88,16 @@ def find_overlap(vector1, vector2):
 
     return overlap, len(one_in_two), len(two_in_one)
 
+def sigmoid(x: float) -> float:
+    """
+    Sigmoid function.
 
-def sigmoid(x):
+    Args:
+        x (float): Input value
+
+    Returns:
+        float: Sigmoid of input value
+    """
     return 1 / (1 + math.exp(-x))
 
 if __name__ == '__main__':
