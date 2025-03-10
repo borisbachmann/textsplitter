@@ -16,6 +16,7 @@ sentence segmenters upon intialization, even if they do not use them.
 
 from typing import Union, List, Protocol, Dict, Any, Optional
 
+from numpy._typing import NDArray
 from sentence_transformers import SentenceTransformer
 from tqdm.auto import tqdm
 
@@ -143,6 +144,8 @@ class DummyChunker:
                 chunks.
             compile: bool: Compile chunks into a single string if True.
             postprocess: bool: Postprocess chunks if True.
+            show_progress: bool: Show progress bar if True and input data is
+                in list format.
             **kwargs: Additional keyword arguments to be caught and ignored.
 
         Returns:
@@ -184,8 +187,10 @@ class DummyChunker:
         themselves contain lists of strings).
 
         Args:
-            data: List[str]: List of strings to split into chunks.
+            data: List[str]: List of strings to split to dummy split into chunks.
             show_progress: bool: Show progress bar if True.
+            kwargs: Additional keyword arguments for the chunker to be caught
+                and ignored.
 
         Returns:
             List[List[List[str]]]: List of chunks as lists of strings with
@@ -247,9 +252,9 @@ class EmbeddingChunker:
     EmbeddingBackendProtocol and a transformer model name.
 
     Args:
-        segmenter: Union[str, SegmenterProtocol]: Name of a built-in segmenter
+        segmenter (Union[str, SegmenterProtocol]): Name of a built-in segmenter
             or a custom segmenter callable implementing the SegmenterProtocol.
-        language_or_model: Optional[str]: Language or model name for built-in
+        language_or_model (Optional[str]): Language or model name for built-in
             segmenters.
     """
 
@@ -279,6 +284,23 @@ class EmbeddingChunker:
               show_progress: Optional[bool] = False,
               **kwargs
               ) -> Union[List[List[str]], List[str]]:
+        """
+        Return chunks for a single string or a list of strings as one list of
+        strings per input string.
+
+        Args:
+            data (Union[str, List[str]]): Text or list of texts to split into
+                chunks.
+            compile (bool): Compile chunks into a single string if True.
+            postprocess (bool): Postprocess chunks if True.
+            show_progress (bool): Show progress bar if True and input data is
+                of list format.
+            **kwargs: Additional keyword arguments for the internal chunker.
+
+        Returns:
+            Union[List[List[str]], List[str]]: List of chunks as strings or a
+                list of lists of chunks as strings.
+        """
 
         ensure_separators = kwargs.pop("ensure_separators", False)
 
@@ -310,6 +332,21 @@ class EmbeddingChunker:
                show_progress: bool = False,
                **kwargs
                ) -> List[List[List[str]]]:
+        """
+        Private function handling the core splitting logic. Splits text data
+        into sentences with the internal sentencizer, creates embeddings for
+        each sentence and groups sentences into chunks based upon the internal
+        chunker.
+
+        Args:
+            data (List[str]): List of strings to split to split into chunks.
+            show_progress (bool): Show progress bar if True.
+            kwargs: Additional keyword arguments for the chunker.
+
+        Returns:
+            List[List[List[str]]]: List of chunks as lists of strings.
+        """
+
         drop_placeholders = kwargs.pop("drop_placeholders", [])
 
         sentences = self.sentencizer.split_list(
@@ -335,13 +372,58 @@ class EmbeddingChunker:
 
         return chunks
 
-    def _create_embeddings(self, sentences, show_progress=False):
+    def _create_embeddings(
+            self,
+            sentences: Union[List[str], List[List[str]]],
+            show_progress: bool = False
+            ) -> Union[List[NDArray], List[List[NDArray]]]:
+        """
+        Create embeddings for each string in data based upon the internal
+        transformer model.
+
+        Args:
+            sentences (Union[List[str], List[List[str]]]): List or list of lists
+                of sentences.
+            show_progress (bool): Show progress bar if True.
+
+        Returns:
+            Union[List[NDArray], List[List[NDArray]]]: List or list of lists
+                of embeddings with one embedding per sentence.
+        """
         if show_progress:
             iterator = tqdm(sentences, desc="Creating embeddings")
         else:
             iterator = sentences
         return [self.model.encode(sent_list, show_progress_bar=False)
                 for sent_list in iterator]
+
+    def _compile_chunks(self,
+                        chunks: Union[List[List[str]], List[List[List[str]]]],
+                        ensure_separators: bool = False
+                        ) -> Union[List[str], List[List[str]]]:
+        """
+        Compile chunks received as individual sentences into single strings. To
+        avoid merging paragraphs (originally separated by line breaks) into
+        unstructured word salad, a separator full stop can be inserted
+        optionally.
+
+        Args:
+            chunks (Union[List[List[str]], List[List[List[str]]]]): Chunks as
+                lists of sentences per chunk.
+            ensure_separators (bool): Insert a full stop at the end of each
+                sentence that not clearly ends in sentence-ending punctuation
+
+        Returns:
+            Union[List[str], List[List[str]]]: Chunks as single strings.
+        """
+        depth = uniform_depth(chunks)
+        if depth == 2:
+            return [make_text_from_chunk(c, ensure_separators=ensure_separators)
+                    for c in chunks]
+        if depth == 3:
+            return [[make_text_from_chunk(c, ensure_separators=ensure_separators)
+                     for c in chunk_list]
+                    for chunk_list in chunks]
 
     def _postprocess(self,
                      chunks: (Union[List[str], List[List[str]],
@@ -350,8 +432,21 @@ class EmbeddingChunker:
                                 List[List[List[str]]]]:
         """
         Clear away irregularities in the sentence lists produced by different
-        sentence segmenters. Removes leading and trailing whitespace and empty
-        strings.
+        sentence segmenters.
+
+        Removes leading and trailing whitespace and empty strings in the current
+        implementation. (Might be modified in the future to accept kwargs for
+        different postprocessing steps.)
+
+        Args:
+            chunks (Union[List[str], List[List[str]], List[List[List[str]]]]):
+                Compiled or uncompiled chunks (lists of sentences or single
+                strings per chunk)
+
+        Returns:
+            Union[List[str], List[List[str]], List[List[List[str]]]]: Chunks in
+                the same basic structure as input chunks but with empty chunks
+                and trailing or leading whitespace removed.
         """
         depth = uniform_depth(chunks)
         if depth == 1:
@@ -363,26 +458,51 @@ class EmbeddingChunker:
             return [[[s.strip() for s in chunk if s.strip()] for chunk in chunk_list]
                     for chunk_list in chunks]
 
-    def _compile_chunks(self,
-                        chunks: Union[List[List[str]], List[List[List[str]]]],
-                        ensure_separators: bool = False
-                        ) -> Union[List[str], List[List[str]]]:
-        depth = uniform_depth(chunks)
-        if depth == 2:
-            return [make_text_from_chunk(c, ensure_separators=ensure_separators)
-                    for c in chunks]
-        if depth == 3:
-            return [[make_text_from_chunk(c, ensure_separators=ensure_separators)
-                     for c in chunk_list]
-                    for chunk_list in chunks]
+    def _calculate_length(
+            self,
+            sentence: str
+            ) -> int:
+        """
+        Use the internal model's tokenizer to calculate the length of a sentence
+        as the number of its tokens.
 
-    def _calculate_length(self, sentence):
+        Note: Tokens in this implementation are tokens as perceived by
+        transformer models which don't translate into tokens in the traditional
+        NLP sense (where one word is one token). The logic behind this choice
+        is to enable generation of chunks which fit into the embedding length
+        of or are of equal length with regard to transformer models.
+
+        Args:
+            sentence (str): Sentence to calculate length of.
+
+        Returns:
+            int: The number of tokens in the sentence.
+        """
         tokens = self.tokenizer(sentence)
         return len(tokens["input_ids"])
 
     def _load_model(self,
                     model: Union[str, EmbeddingModel, SentenceTransformer]
-                    ) -> Union[EmbeddingModel, SentenceTransformer, str]:
+                    ) -> Union[EmbeddingModel, SentenceTransformer]:
+        """
+        Load the internal transformer model used for the generation of
+        embeddings and length calculations. Model can be specified as either a
+        string, a SentenceTransformer instance or an EmbeddingModel instance
+        which wraps any model from Hugging Face into a high-level interface
+        similar to SentenceTransformer. If a string is passed, it must refer
+        to a valid Hugging Face model and will be used to create an
+        EmbeddingModel instance.
+
+        Args:
+            model (Union[str, EmbeddingModel, SentenceTransformer]): Model to
+                be used. If a string, it must specify a valid model from Hugging
+                Face.
+
+        Returns:
+            Union[EmbeddingModel, SentenceTransformer]: Model as an instance
+                that mirrors the SentenceTransformer interface for the purposes
+                of the EmbeddingChunker's methods.
+        """
         if isinstance(model, str):
             return EmbeddingModel(model)
         elif (isinstance(model, EmbeddingModel) or
@@ -395,14 +515,30 @@ class EmbeddingChunker:
     def _load_chunker(self,
                       chunker: Union[str, EmbeddingChunkerProtocol],
                       chunker_specs: Dict[str, Any]
-                      ):
+                      ) -> EmbeddingChunkerProtocol:
+        """
+        Parse chunker specifications to create the internal chunker object that
+        handles the compilation of sentences and embeddings into chunks. Can
+        parse either a string specifying a built-in chunker or a custom callable
+        that implements the EmbeddingChunker protocol.
+
+        Args:
+            chunker (Union[str, EmbeddingChunkerProtocol]): Chunker to be
+                loaded.
+            chunker_specs (Dict[str, Any]): Additional specifications to be
+                passed at initialization to the chunker.
+
+        Returns:
+            EmbeddingChunkerProtocol: Callable that implements the
+                EmbeddingChunkerProtocoll.
+        """
         if isinstance(chunker, str):
             if chunker not in CHUNK_BACKENDS_MAP:
                 raise ValueError(f"Invalid segmenter '{chunker}'. "
                                  f"Must be in: {list(CHUNK_BACKENDS_MAP.keys())}.")
             return CHUNK_BACKENDS_MAP[chunker](**chunker_specs)
         elif callable(chunker):
-            return chunker
+            return chunker(**chunker_specs)
         else:
             raise ValueError("Chunker must be a string or callable. Custom "
                              "callables must implement the "
