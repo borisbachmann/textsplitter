@@ -1,1 +1,1 @@
-from backends import PARA_SEGMENTER_MAP
+from .backends import PARA_SEGMENTER_MAP, ParaSegmenterProtocol

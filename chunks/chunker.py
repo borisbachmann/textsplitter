@@ -22,7 +22,7 @@ from tqdm.auto import tqdm
 
 from .backends import CHUNK_BACKENDS_MAP, EmbeddingChunkerProtocol
 from .utils import make_text_from_chunk
-from text_splitter.chunks.embeddings import EmbeddingModel
+from .embeddings import EmbeddingModel
 from ..sentences.handling import SentenceHandler
 from ..utils import uniform_depth
 
@@ -258,10 +258,16 @@ class EmbeddingChunker:
             segmenters.
     """
 
-    def __init__(self,
-                 specs: Dict[str, Any]):
-        self.model = self._load_model(specs.pop("model"))
+    def __init__(
+            self,
+            model: Union[str, EmbeddingModel, SentenceTransformer],
+            specs: Optional[Dict[str, Any]] = None
+            ):
+        self.model = self._load_model(model)
         self.tokenizer = self.model.tokenizer
+
+
+        specs = specs or {}
 
         # Load internal SentenceModule
         sent_specs = {"sentencizer": specs.get("sentencizer", ("pysbd", "de")),
@@ -532,14 +538,25 @@ class EmbeddingChunker:
             EmbeddingChunkerProtocol: Callable that implements the
                 EmbeddingChunkerProtocoll.
         """
+        map = CHUNK_BACKENDS_MAP["embedding"]
         if isinstance(chunker, str):
-            if chunker not in CHUNK_BACKENDS_MAP:
+            if chunker not in map:
                 raise ValueError(f"Invalid segmenter '{chunker}'. "
-                                 f"Must be in: {list(CHUNK_BACKENDS_MAP.keys())}.")
-            return CHUNK_BACKENDS_MAP[chunker](**chunker_specs)
+                                 f"Must be in: {list(map.keys())}.")
+            return map[chunker](**chunker_specs)
         elif callable(chunker):
             return chunker(**chunker_specs)
         else:
             raise ValueError("Chunker must be a string or callable. Custom "
                              "callables must implement the "
                              "EmbeddingChunkerProtocol.")
+
+CHUNKER_REGISTRY = {
+"embedding": {
+    "required_params": ["model"],
+    "mapping": "embedding",
+    "default_backend": "linear",
+    "class": EmbeddingChunker
+}
+    # add new chunkers here
+}

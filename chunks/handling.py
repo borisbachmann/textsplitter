@@ -9,12 +9,13 @@ If no appropriate chunking specs are passed, the ChunkHandler will default to
 using a DummyChunker that simply splits the input data into chunks of a fixed
 size. The ChunkHandler can also be initialized with a custom chunker.
 """
-from typing import Dict, Any, Union, Optional
+from typing import Dict, Any, Union, Optional, Tuple
 
 import pandas as pd
 from tqdm.auto import tqdm
 
-from .chunker import EmbeddingChunker, DummyChunker
+from .backends import EmbeddingChunkerProtocol, CHUNK_BACKENDS_MAP
+from .chunker import EmbeddingChunker, DummyChunker, ChunkerProtocol, CHUNKER_REGISTRY
 from .utils import make_indices_from_chunk
 from ..dataframes.columns import TEXT_COL, CHUNK_COL
 from ..utils import add_id
@@ -24,48 +25,146 @@ from text_splitter.dataframes.functions import cast_to_df
 tqdm.pandas()
 
 class ChunkHandler:
-    def __init__(self, chunk_specs, para_specs, sent_specs):
-        specs = self._compile_specs(chunk_specs, para_specs, sent_specs)
-        self.chunker = self._load_chunker(specs)
+    def __init__(
+            self,
+            chunk_specs: Optional[Dict[str, Any]] = None,
+            para_specs: Optional[Dict[str, Any]] = None,
+            sent_specs: Optional[Dict[str, Any]] = None):
+        """
+        Constructor merges spec dictionaries, parses them,
+        then loads the appropriate chunker.
+        """
+        parsed_specs = self._parse_specs(chunk_specs, para_specs, sent_specs)
+        self.chunker = self._load_chunker(*parsed_specs)
 
-    def _compile_specs(self,
-                       chunk_specs: Optional[Dict[str, Any]] = None,
-                       para_specs: Optional[Dict[str, Any]] = None,
-                       sent_specs: Optional[Dict[str, Any]] = None
-                       ) -> Dict[str, Any]:
+    @ staticmethod
+    def _parse_specs(chunk_specs: Optional[Dict[str, Any]] = None,
+                     para_specs: Optional[Dict[str, Any]] = None,
+                     sent_specs: Optional[Dict[str, Any]] = None
+                     ) -> Tuple[str, Optional[str], Dict[str, Any],
+                                Dict[str, Any]]:
+        """
+        Merge all specs and extract required parameters for
+        initialization of the chunker.
+
+        Args:
+            chunk_specs (Optional[Dict[str, Any]]): Chunker specs
+            para_specs (Optional[Dict[str, Any]]): Paragrapher specs
+            sent_specs (Optional[Dict[str, Any]]): Sentencizer specs
+
+        Returns:
+            Tuple[str, Optional[str], Dict[str, Any], Dict[str, Any]]:
+                chunker, chunker_type, required_params, remaining_specs for
+                chunker initialization
+        """
+        # Handle missing specs
         chunk_specs = chunk_specs or {}
         para_specs = para_specs or {}
         sent_specs = sent_specs or {}
 
-        # merge all specs
-        specs = chunk_specs | para_specs | sent_specs
+        chunker = chunk_specs.get("chunker", None)
+        chunker_type = ChunkHandler._determine_chunker_type(chunk_specs)
 
-        # ensure default chunker is set
-        if not callable(specs.get("chunker", None)):
-            if "model" in specs:
-                print("No chunker specified. Using linear chunker.")
-                specs.setdefault("chunker", "linear")
-            else:
-                print("No chunker or model specified. Using dummy chunker.")
-                specs.setdefault("chunker", "dummy")
+        required = (CHUNKER_REGISTRY[chunker_type]["required_params"]
+                    if chunker_type else [])
 
-        return specs
+        if not chunker and not chunker_type:
+            print("No valid chunker specified. Using dummy chunker.")
+            chunker = "dummy"
+        elif not chunker and chunker_type:
+            chunker = CHUNKER_REGISTRY[chunker_type]["default_backend"]
+            print(
+                f"No chunker specified. Defaulting to '{chunker}' with "
+                f"specified parameters."
+            )
+        # catch invalid chunkers
+        elif isinstance(chunker, str) and chunker_type:
+            # verify call to built-in chunkers
+            if chunker not in CHUNK_BACKENDS_MAP[chunker_type]:
+                raise ValueError(
+                    f"Invalid chunker specified: '{chunker}' is not a "
+                    f"built-in type."
+                )
+        elif isinstance(chunker, str) and not chunker_type:
+            print("Here")
+            # if chunker is valid but chunker type could not be
+            # determined, some parameters have to be missing
+            for chunker_type, chunkers in CHUNK_BACKENDS_MAP.items():
+                if chunker in chunkers:
+                    break
+            missing_params = [
+                param for param in
+                CHUNKER_REGISTRY[chunker_type]["required_params"]
+                if param not in chunk_specs
+                ]
+            raise ValueError(
+                f"Chunker type '{chunker_type}' specified but "
+                f"missing required parameters: '{missing_params}'."
+            )
+        elif chunker is not None and not callable(chunker):
+            raise ValueError(
+                "Chunker must be a string or callable implementing the "
+                "ChunkerProtocol."
+            )
 
-    def _load_chunker(self,
-                      specs: Dict[str, Any]
+        # extract required parameters from dict:
+        required_params = {key: chunk_specs.pop(key) for key in required}
+
+        # merge para_specs and sent_specs into remaining_specs
+        remaining_specs = chunk_specs | para_specs | sent_specs
+
+        return chunker, chunker_type, required_params, remaining_specs
+
+    @staticmethod
+    def _determine_chunker_type(
+            specs: Dict[str, Any]
+            ) -> Optional[str]:
+        """Try to determine the type of chunker to use based on specs.
+
+        Args:
+            specs (Dict[str, Any]): Chunker specs
+
+        Return:
+            Optional[str]: Chunker type if derivable from dict, else None
+        """
+        for chunker_type, config in CHUNKER_REGISTRY.items():
+            if all(param in specs for param in config["required_params"]):
+                return chunker_type
+
+    @ staticmethod
+    def _load_chunker(chunker: Union[str, ChunkerProtocol,
+                                     EmbeddingChunkerProtocol],
+                      chunker_type: Optional[str],
+                      required_specs: Dict[str, Any],
+                      remaining_specs: Dict[str, Any]
                       ) -> Union[EmbeddingChunker, DummyChunker, callable]:
         """
         Based upon specs load the appropriate chunker with the correct
         parameters.
+
+        Args:
+            chunker: Union[str, ChunkerProtocol, EmbeddingChunkerProtocol]:
+                Chunker to load
+            chunker_type: Optional[str]: Type of chunker if known chunker class
+            required_specs: Dict[str, Any]: Required parameters for known
+                chunker classes
+            remaining_specs: Dict[str, Any]: Remaining parameters for chunker
         """
-        # Loading callable is not implemented yet – resolve how to handle para
-        # and sent specs in specs
-        if callable(specs["chunker"]):
-            return specs["chunker"](specs)
-        elif specs["chunker"] == "dummy":
+        if chunker == "dummy":
             return DummyChunker()
-        else:
-            return EmbeddingChunker(specs)
+        if isinstance(chunker, str):
+            chunker_class = CHUNKER_REGISTRY[chunker_type]["class"]
+            return chunker_class(*required_specs.values(), remaining_specs)
+        elif callable(chunker):
+            if chunker_type is not None:
+                # if a chunker type could be determined, use the callable as
+                # backend and wrap it in appropriate class
+                chunker_class = CHUNKER_REGISTRY[chunker_type]["class"]
+                return chunker_class(*required_specs.values(), remaining_specs)
+            if chunker_type is None:
+                # if no chunker type could be determined, the use the callable
+                # directly
+                return callable(remaining_specs)
 
     def split(self,
               text: str,
@@ -167,7 +266,7 @@ class ChunkHandler:
 
     def split_df(self,
                  input_df: pd.DataFrame,
-                 column: str = TEXT_COL,
+                 text_column: str = TEXT_COL,
                  drop_text: bool = True,
                  mathematical_ids: bool = False,
                  include_span: bool = False,
@@ -182,7 +281,7 @@ class ChunkHandler:
 
         Args:
             input_df: pd.DataFrame containing data data
-            column: name of the column containing data data
+            text_column: name of the column containing data data
             drop_text: whether to drop the original data column
             mathematical_ids: whether to increment chunk IDs by 1 to avoid 0
             include_span: whether to include start and end indices of chunks
@@ -191,7 +290,7 @@ class ChunkHandler:
         Returns:
             pd.DataFrame: DataFrame with chunks as rows
         """
-        texts = input_df[column].tolist()
+        texts = input_df[text_column].tolist()
         chunks = self.split_list(texts,
                                  as_tuples=True,
                                  include_span=include_span,
@@ -202,7 +301,7 @@ class ChunkHandler:
             input_df=input_df,
             segments=chunks,
             base_column=CHUNK_COL,
-            text_column=column,
+            text_column=text_column,
             drop_text=drop_text,
             mathematical_ids=mathematical_ids,
             include_span=include_span

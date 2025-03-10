@@ -158,8 +158,10 @@ class GraphEmbeddingChunker:
 
 # Mapping of paragraph segmenter names to segmenter classes
 # To extend the chunker with additional chunking techniques, add the new
-# technique to the CHUNKER_MAP dictionary.
+# technique to the CHUNKER_BACKENDS_MAP dictionary.
 CHUNK_BACKENDS_MAP = {
-    "linear": LinearEmbeddingChunker,
-    "graph": GraphEmbeddingChunker
+    "embedding": {"linear": LinearEmbeddingChunker,
+                   "graph": GraphEmbeddingChunker
+                   }
+    # add new chunker types here
 }
