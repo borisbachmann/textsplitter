@@ -10,7 +10,7 @@ PARA_COL = "paragraph"  # column for individual paragraphs
 CHUNK_COL = "chunk"     # column for individual chunk
 # not implemented yet
 TOKEN = "token"         # base name for tokens, not used as columns name
-TOKEN_COL = "text"      # column for token text, used as base column name
+TOKEN_COL = "token"     # column for token text, used as base column name
 
 # basic suffixes for token column types
 MULTI_SUFFIX = "s"    # suffix for columns with multiple segments

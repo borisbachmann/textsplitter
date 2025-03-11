@@ -34,7 +34,8 @@ class Sentencizer:
             self._segmenter = segmenter
         else:
             raise ValueError("Segmenter must be a string or callable. Custom "
-                             "callables must implement the SegmenterProtocol.")
+                             "callables must implement the "
+                             "SentSegmenterProtocol.")
 
     def split(self,
               data: Union[str, List[str]],

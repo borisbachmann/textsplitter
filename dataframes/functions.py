@@ -15,7 +15,8 @@ def column_list(base_col, text_col):
         id_pattern(base_col),
         base_col,
         span_pattern(base_col),
-        n_pattern(base_col)
+        n_pattern(base_col),
+        "meta" # remove later
     ]
 
 
@@ -25,6 +26,7 @@ def cast_to_df(
     base_column: str,
     text_column: str = TEXT_COL,
     include_span: bool = False,
+    include_metadata: bool = False,
     drop_text: bool = True,
     mathematical_ids: bool = False
     ) -> pd.DataFrame:
@@ -59,10 +61,17 @@ def cast_to_df(
 
     # unpack segment data into separate columns
     segment_df = pd.DataFrame(df[multi_column].tolist())
+    split_columns = [id_column, base_column]
     if include_span:
-        df[[id_column, span_column, base_column]] = segment_df
-    else:
-        df[[id_column, base_column]] = segment_df
+        split_columns.insert(1, span_column)
+    if include_metadata:
+        split_columns.append("meta")
+    df[split_columns] = segment_df
+
+    # handle metadta
+    if include_metadata:
+        meta_df = pd.json_normalize(df.pop("meta"))
+        df[meta_df.columns] = meta_df
 
     # count segments per text
     df[n_column] = df.groupby(text_column)[text_column].transform("size")
@@ -71,7 +80,12 @@ def cast_to_df(
         df[id_column] = df[id_column].map(lambda x: x + 1)
 
     # keep only desired columns for output dataframe
-    columns = [c for c in column_list(base_column, text_column) if c in df.columns]
+    columns = [c for c in column_list(base_column, text_column)
+               if c in df.columns]
+
+    # add metadata columns if present
+    if include_metadata:
+        columns.extend(meta_df.columns.tolist())
 
     if drop_text:
         columns.remove(text_column)

@@ -22,6 +22,7 @@ from .dataframes import columns
 from .chunks.handling import ChunkHandler
 from .paragraphs.handling import ParagraphHandler
 from .sentences.handling import SentenceHandler
+from .tokens.handling import TokenHandler, TokenFormats
 
 # register pandas
 tqdm.pandas()
@@ -50,6 +51,7 @@ class TextSplitter:
             sentence_specs: Optional[dict] = None,
             paragraph_specs: Optional[dict] = None,
             chunking_specs: Optional[dict] = None,
+            token_specs: Optional[dict] = None,
             ):
         # initialize paragraphing attributes
         self.paragrapher = ParagraphHandler(paragraph_specs)
@@ -61,10 +63,14 @@ class TextSplitter:
         self.chunker = ChunkHandler(chunking_specs, paragraph_specs,
                                     sentence_specs)
 
+        # initialize tokenizer attritubtes
+        self.tokenizer = TokenHandler(token_specs)
+
         self.processors = {
             "sentences": self.sentencizer,
             "paragraphs": self.paragrapher,
-            "chunks": self.chunker
+            "chunks": self.chunker,
+            "tokens": self.tokenizer
         }
 
     # present for backwards compatibility. Use explicit methods instead.
@@ -232,6 +238,23 @@ class TextSplitter:
         """
         return self._process_data(data=data, mode="chunks", column=column,
                                   as_tuples=as_tuples, include_span=include_span,
+                                  mathematical_ids=mathematical_ids,
+                                  drop_text=drop_text, **kwargs)
+
+    def tokens(self,
+               data: Union[str, list, pd.Series, pd.DataFrame],
+                column: Optional[str] = columns.TEXT_COL,
+                as_tuples: Optional[bool] = False,
+                include_span: Optional[bool] = False,
+                include_metadata: Optional[bool] = False,
+                mathematical_ids: Optional[bool] = False,
+                drop_text: Optional[bool] = True,
+                **kwargs
+               ) -> Union[List[TokenFormats], List[List[TokenFormats]],
+                    pd.Series, pd.DataFrame]:
+        return self._process_data(data=data, mode="tokens", column=column,
+                                  as_tuples=as_tuples, include_span=include_span,
+                                  include_metadata=include_metadata,
                                   mathematical_ids=mathematical_ids,
                                   drop_text=drop_text, **kwargs)
 

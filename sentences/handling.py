@@ -30,8 +30,7 @@ class SentenceHandler:
         para_specs (dict): Specifications for paragraph splitting.
     """
     def __init__(self, sent_specs, para_specs):
-        if sent_specs is None:
-            sent_specs = {}
+        sent_specs = sent_specs or {}
         self.sentencizer = self._initialize_splitter(
             sent_specs.get("sentencizer", ("pysbd", "de")))
 
