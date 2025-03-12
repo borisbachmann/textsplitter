@@ -1,6 +1,7 @@
 from typing import Dict, Any, Union, List, Optional
 
-from .backends import TOKEN_SEGMENTER_MAP, TokenSegmenterProtocol
+from .backends import TokenSegmenterProtocol
+from . import TOKEN_SEGMENTER_MAP
 
 
 class Tokenizer(object):

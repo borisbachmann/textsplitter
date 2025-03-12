@@ -1,5 +1,6 @@
 from typing import Callable, List, Optional
 
+from numpy._typing import NDArray
 from numpy.typing import NDArray
 
 from ..utils import calculate_similarity
@@ -86,3 +87,53 @@ def linear_chunking(
         chunks.append(current_chunk)
 
     return chunks
+
+
+class LinearEmbeddingChunker:
+    """
+    Chunker class that wraps around the linear chunking technique. Linear
+    chunking splits a list of sentences into chunks bis aggregating consecutive
+    sentences until either a certain maximum length is reached or a similarity
+    threshold is exceeded. Linear chunking allows to create chunks with a
+    precise maximum length based upon a specific metric (e.g. number of
+    tokens, characters etc.). Maximum length and similarity threshold values
+    are specified when calling the chunker.
+
+    Args:
+        length_metric (callable): A callable that takes a sentence as input and
+            returns its length as a numerical value. If initialized via the
+            Chunker class, the Chunker's tokenizer is used.
+        similarity_metric (str): The similarity metric to measure against the
+            threshold. Either 'pairwise' (i.e. similarity between two
+            consecutive sentences) or 'cumulative' (i.e. average similarity
+            between all sentences in the chunk). Defaults to 'pairwise'.
+    """
+    def __init__(self,
+                 length_metric: callable,
+                 similarity_metric: str = DEFAULT_METRIC
+                 ):
+        self.length_metric = length_metric
+        self.similarity_metric = similarity_metric
+
+    def __call__(self,
+                 sentences : List[str],
+                 embeddings: List[NDArray],
+                 **kwargs
+                 ) -> List[List[str]]:
+        """
+        Call the linear chunking technique to create chunks from a list of
+        consecutive sentences and corresponding embeddings.
+
+        Args:
+            sentences (List[str]): List of sentences to be chunked.
+            embeddings (List[NDArray]): List of embeddings for each sentence.
+            **kwargs: Additional keyword arguments to be passed to the linear
+                chunking function:
+                - max_length (int): Maximum length of a chunk.
+                - threshold (float): Similarity threshold for chunking.
+        """
+        return linear_chunking(sentences=sentences,
+                               embeddings=embeddings,
+                               length_metric=self.length_metric,
+                               similarity_metric=self.similarity_metric,
+                               **kwargs)

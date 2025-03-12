@@ -6,7 +6,7 @@ from tqdm.auto import tqdm
 from ..dataframes.functions import cast_to_df
 from ..dataframes import columns
 from ..utils import find_substring_indices
-from text_splitter.tokens.tokenizer import Tokenizer
+from .tokenizer import Tokenizer
 
 # As TokenHandler outputs can get quite complex, define possible output
 # structures here

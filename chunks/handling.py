@@ -15,7 +15,7 @@ import pandas as pd
 from tqdm.auto import tqdm
 
 from .backends import EmbeddingChunkerProtocol, CHUNK_BACKENDS_MAP
-from .chunker import EmbeddingChunker, DummyChunker, ChunkerProtocol, CHUNKER_REGISTRY
+from text_splitter.chunks.chunker import DummyChunker, ChunkerProtocol, EmbeddingChunker, SimpleChunker
 from .utils import make_indices_from_chunk
 from ..dataframes.columns import TEXT_COL, CHUNK_COL
 from ..utils import add_id
@@ -64,6 +64,8 @@ class ChunkHandler:
 
         chunker = chunk_specs.get("chunker", None)
         chunker_type = ChunkHandler._determine_chunker_type(chunk_specs)
+        if chunker_type:
+            chunker_map = CHUNKER_REGISTRY[chunker_type]["chunkers"]
 
         required = (CHUNKER_REGISTRY[chunker_type]["required_params"]
                     if chunker_type else [])
@@ -80,16 +82,15 @@ class ChunkHandler:
         # catch invalid chunkers
         elif isinstance(chunker, str) and chunker_type:
             # verify call to built-in chunkers
-            if chunker not in CHUNK_BACKENDS_MAP[chunker_type]:
+            if chunker not in chunker_map:
                 raise ValueError(
                     f"Invalid chunker specified: '{chunker}' is not a "
                     f"built-in type."
                 )
         elif isinstance(chunker, str) and not chunker_type:
-            print("Here")
             # if chunker is valid but chunker type could not be
             # determined, some parameters have to be missing
-            for chunker_type, chunkers in CHUNK_BACKENDS_MAP.items():
+            for chunker_type, chunkers in chunker_map.items():
                 if chunker in chunkers:
                     break
             missing_params = [
@@ -311,3 +312,19 @@ class ChunkHandler:
             mathematical_ids=mathematical_ids,
             include_span=include_span
         )
+
+# Registry of all chunkers types: Put all available chunkers here
+CHUNKER_REGISTRY = {
+"embedding": {
+    "required_params": ["model"],
+    "default_backend": "linear",
+    "class": EmbeddingChunker,
+    "chunkers": CHUNK_BACKENDS_MAP["embedding"]
+    },
+"simple": {
+    "required_params": [],
+    "default_backend": "sliding",
+    "class": SimpleChunker,
+    "chunkers": CHUNK_BACKENDS_MAP["simple"]
+    }
+}

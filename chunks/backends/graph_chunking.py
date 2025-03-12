@@ -1,11 +1,15 @@
+from typing import List
+
 import math
 from collections import defaultdict
 
 import community as community_louvain
 import networkx as nx
+from numpy._typing import NDArray
 
 from ..utils import calculate_similarity, find_overlap, sigmoid
-from ..constants import DEFAULT_K, DEFAULT_RESOLUTION, DEFAULT_RANDOM_STATE
+from ..constants import DEFAULT_K, DEFAULT_RESOLUTION, DEFAULT_RANDOM_STATE, DEFAULT_RES_MULTIPLIER
+
 
 def graph_chunking(
         sentences: list,
@@ -178,3 +182,67 @@ def compact_clusters(clusters):
         cl.sort()
     compact_clusters.sort()
     return compact_clusters
+
+
+class GraphEmbeddingChunker:
+    """
+    Chunker class that wraps around the graph chunking technique. Graph chunking
+    splits a list of sentences into chunks by creating a similarity graph
+    between sentences and then applying a graph-based clustering algorithm to
+    group sentences into chunks. Clusters are extracted by finding Louvain
+    communities in the graph.
+
+    Currently accepts a length_metric callable that is not used in the  current
+    implementation but required for compatibility with the Chunker class.
+
+    Args:
+        length_metric (callable): A callable that takes a sentence as input and
+            returns its length as a numerical value. If initialized via the
+            Chunker class, the Chunker's tokenizer is used.
+    """
+    def __init__(self,
+                 length_metric: callable = None
+                 ):
+        self.length_metric = length_metric
+        pass
+
+    def __call__(self,
+                 sentences : List[str],
+                 embeddings: List[NDArray],
+                 **kwargs
+                 ) -> List[List[str]]:
+        """
+        Call the graph chunking technique to create chunks from a list of
+        consecutive sentences and corresponding embeddings.
+
+        Args:
+            sentences (List[str]): List of sentences to be chunked.
+            embeddings (List[NDArray]): List of embeddings for each sentence.
+            **kwargs: Additional keyword arguments to be passed to the graph
+                chunking function:
+                - K (int): Number of preceeding and following sentences to
+                    connect in the graph.
+                - resolution (float): Resolution parameter for the Louvain
+                    community detection algorithm.
+
+        Returns:
+            List[List[str]]: List of chunks as lists of sentences within each
+                chunk.
+        """
+        goal_length = kwargs.pop("goal_length", None)
+        res_multiplier = kwargs.pop("res_multiplier", DEFAULT_RES_MULTIPLIER)
+
+        if goal_length is not None:
+            if isinstance(goal_length, int):
+                resolution = len(sentences) / (goal_length * res_multiplier)
+                return graph_chunking(sentences=sentences,
+                                      embeddings=embeddings,
+                                      resolution=resolution,
+                                      **kwargs)
+            else:
+                raise ValueError("Invalid goal length value. Please provide an "
+                                 "integer value or None.")
+        else:
+            return graph_chunking(sentences=sentences,
+                                  embeddings=embeddings,
+                                  **kwargs)

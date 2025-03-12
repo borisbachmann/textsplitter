@@ -14,17 +14,19 @@ techniques. All have to be able to handle specs for internal paragraph and
 sentence segmenters upon intialization, even if they do not use them.
 """
 
-from typing import Union, List, Protocol, Dict, Any, Optional
+from typing import Protocol, Union, List, Optional, Dict, Any
 
 from numpy._typing import NDArray
 from sentence_transformers import SentenceTransformer
+
 from tqdm.auto import tqdm
 
-from .backends import CHUNK_BACKENDS_MAP, EmbeddingChunkerProtocol
-from .utils import make_text_from_chunk
-from .embeddings import EmbeddingModel
-from ..sentences.handling import SentenceHandler
-from ..utils import uniform_depth
+from.backends import EmbeddingChunkerProtocol, CHUNK_BACKENDS_MAP
+from text_splitter.chunks.embeddings import EmbeddingModel
+from text_splitter.chunks.utils import make_text_from_chunk
+from text_splitter.sentences.handling import SentenceHandler
+from text_splitter.utils import uniform_depth
+from .backends.segmenters import SimpleChunkerProtocol
 
 
 class ChunkerProtocol(Protocol):
@@ -110,6 +112,7 @@ class ChunkerProtocol(Protocol):
             List[List[str]]: List of chunks as lists of strings with
                 postprocessing applied.
         """
+
 
 class DummyChunker:
     """
@@ -242,20 +245,29 @@ class DummyChunker:
         """
         return data
 
+
 class EmbeddingChunker:
     """
-    Chunker class that wraps around different chunk segmenters. Takes a text
-    or alternatively a lists of texts and returns a list of chunks per text
-    either in a flat list or a list of lists. Initialized with the name of a
-    built-in chunker and a corresponding set of parameters. Alternatively
-    initiated with a custom callable that implements the
-    EmbeddingBackendProtocol and a transformer model name.
+    Chunker class that wraps around different embedding-based chunk segmenters.
+    Takes a text or alternatively a lists of texts and returns a list of chunks
+    per text either in a flat list or a list of lists. Initialized with the name
+    of a built-in chunker and a corresponding set of parameters. Alternatively
+    initiated with a custom callable that implements the EmbeddingBackendProtocol
+    and a transformer model name.
 
     Args:
-        segmenter (Union[str, SegmenterProtocol]): Name of a built-in segmenter
-            or a custom segmenter callable implementing the SegmenterProtocol.
-        language_or_model (Optional[str]): Language or model name for built-in
-            segmenters.
+        model (Optional[str]): transformer model as a string or an instance of
+            EmbeddingModel or SentenceTransformer. If a string, it must refer to
+            a valid model from Hugging Face.
+        specs (Optional[Dict[str, Any]]): Specifications for the chunker and
+            internal segmenters. Must include:
+            - "chunker": Name of the chunker to be used. Can be either a string
+                referring to a built-in chunker or a custom callable implementing
+                the EmbeddingChunkerProtocol.
+            - "chunker_specs": Additional specifications to be passed when
+                instantiating the chunker.
+            - sent_specs: Specifications for the internal SentenceHandler.
+            - para_specs: Specifications for the internal ParagraphHandler.
     """
 
     def __init__(
@@ -551,12 +563,229 @@ class EmbeddingChunker:
                              "callables must implement the "
                              "EmbeddingChunkerProtocol.")
 
-CHUNKER_REGISTRY = {
-"embedding": {
-    "required_params": ["model"],
-    "mapping": "embedding",
-    "default_backend": "linear",
-    "class": EmbeddingChunker
-}
-    # add new chunkers here
-}
+
+class SimpleChunker:
+    """
+    Chunker class that wraps around different chunk segmenters that work without
+    sentence embeddings.seTakes a text or alternatively a lists of texts and
+    returns a list of chunks per text either in a flat list or a list of lists.
+    Initialized with the name of a built-in chunker and a corresponding set of
+    parameters. Alternatively initiated with a custom callable that implements
+    the SimpleChunkerProtocol.
+
+    Args:
+        specs (Optional[Dict[str, Any]]): Specifications for the chunker and
+            internal segmenters. Must include:
+            - "chunker": Name of the chunker to be used. Can be either a string
+                referring to a built-in chunker or a custom callable implementing
+                the EmbeddingChunkerProtocol.
+            - "chunker_specs": Additional specifications to be passed when
+                instantiating the chunker.
+            - sent_specs: Specifications for the internal SentenceHandler.
+            - para_specs: Specifications for the internal ParagraphHandler.
+    """
+
+    def __init__(
+            self,
+            specs: Optional[Dict[str, Any]] = None
+            ):
+
+        specs = specs or {}
+
+        # Load internal SentenceModule
+        sent_specs = {"sentencizer": specs.get("sentencizer", ("pysbd", "de")),
+                      "show_progress": False}
+        para_specs = {"paragrapher": specs.get("paragrapher", "clean"),
+                      "drop_placeholders": specs.get("drop_placeholders", [])}
+        self.sentencizer = SentenceHandler(sent_specs, para_specs)
+
+        # Load working parameters
+        chunker = specs.get("chunker", "sliding")
+        chunker_specs = specs.get("chunker_specs", {})
+
+        self._chunker = self._load_chunker(chunker, chunker_specs)
+
+    def split(self,
+              data: Union[str, List[str]],
+              compile: bool = True,
+              postprocess: bool = True,
+              show_progress: Optional[bool] = False,
+              **kwargs
+              ) -> Union[List[List[str]], List[str]]:
+        """
+        Return chunks for a single string or a list of strings as one list of
+        strings per input string.
+
+        Args:
+            data (Union[str, List[str]]): Text or list of texts to split into
+                chunks.
+            compile (bool): Compile chunks into a single string if True.
+            postprocess (bool): Postprocess chunks if True.
+            show_progress (bool): Show progress bar if True and input data is
+                of list format.
+            **kwargs: Additional keyword arguments for the internal chunker.
+
+        Returns:
+            Union[List[List[str]], List[str]]: List of chunks as strings or a
+                list of lists of chunks as strings.
+        """
+
+        ensure_separators = kwargs.pop("ensure_separators", False)
+
+        if isinstance(data, str):
+            # wrap to ensure that the segmenter receives a list
+            chunks = self._split([data], **kwargs)
+            print(chunks)
+            if compile:
+                chunks = self._compile_chunks(chunks, ensure_separators)
+            if postprocess:
+                chunks = self._postprocess(chunks)
+            # unwrap to return a single list
+            return chunks[0]
+        if isinstance(data, list):
+            if not data:
+                return []
+            if all([isinstance(e, str) for e in data]):
+                chunks = self._split(data, show_progress,
+                                     **kwargs)
+                chunks = self._postprocess(chunks)
+                if compile:
+                    chunks = self._compile_chunks(chunks, ensure_separators)
+                if postprocess:
+                    chunks = self._postprocess(chunks)
+                return chunks
+        raise ValueError("Data must be either string or list of strings only.")
+
+    def _split(self,
+               data: List[str],
+               show_progress: bool = False,
+               **kwargs
+               ) -> List[List[List[str]]]:
+        """
+        Private function handling the core splitting logic. Splits text data
+        into sentences with the internal sentencizer, creates embeddings for
+        each sentence and groups sentences into chunks based upon the internal
+        chunker.
+
+        Args:
+            data (List[str]): List of strings to split to split into chunks.
+            show_progress (bool): Show progress bar if True.
+            kwargs: Additional keyword arguments for the chunker.
+
+        Returns:
+            List[List[List[str]]]: List of chunks as lists of strings.
+        """
+
+        drop_placeholders = kwargs.pop("drop_placeholders", [])
+
+        sentences = self.sentencizer.split_list(
+            data, drop_placeholders=drop_placeholders,
+            show_progress=show_progress)
+
+        if show_progress:
+            chunks = [self._chunker(sentences=s,
+                                    **kwargs)
+                      for s in tqdm((sentences),
+                                       desc="Chunking sentences")
+                      ]
+        else:
+            chunks = [self._chunker(sentences=s,
+                                    **kwargs)
+                      for s in sentences
+                      ]
+
+        return chunks
+
+    def _compile_chunks(self,
+                        chunks: Union[List[List[str]], List[List[List[str]]]],
+                        ensure_separators: bool = False
+                        ) -> Union[List[str], List[List[str]]]:
+        """
+        Compile chunks received as individual sentences into single strings. To
+        avoid merging paragraphs (originally separated by line breaks) into
+        unstructured word salad, a separator full stop can be inserted
+        optionally.
+
+        Args:
+            chunks (Union[List[List[str]], List[List[List[str]]]]): Chunks as
+                lists of sentences per chunk.
+            ensure_separators (bool): Insert a full stop at the end of each
+                sentence that not clearly ends in sentence-ending punctuation
+
+        Returns:
+            Union[List[str], List[List[str]]]: Chunks as single strings.
+        """
+        depth = uniform_depth(chunks)
+        if depth == 2:
+            return [make_text_from_chunk(c, ensure_separators=ensure_separators)
+                    for c in chunks]
+        if depth == 3:
+            return [[make_text_from_chunk(c, ensure_separators=ensure_separators)
+                     for c in chunk_list]
+                    for chunk_list in chunks]
+
+    def _postprocess(self,
+                     chunks: (Union[List[str], List[List[str]],
+                              List[List[List[str]]]])
+                     ) -> Union[List[str], List[List[str]],
+                                List[List[List[str]]]]:
+        """
+        Clear away irregularities in the sentence lists produced by different
+        sentence segmenters.
+
+        Removes leading and trailing whitespace and empty strings in the current
+        implementation. (Might be modified in the future to accept kwargs for
+        different postprocessing steps.)
+
+        Args:
+            chunks (Union[List[str], List[List[str]], List[List[List[str]]]]):
+                Compiled or uncompiled chunks (lists of sentences or single
+                strings per chunk)
+
+        Returns:
+            Union[List[str], List[List[str]], List[List[List[str]]]]: Chunks in
+                the same basic structure as input chunks but with empty chunks
+                and trailing or leading whitespace removed.
+        """
+        depth = uniform_depth(chunks)
+        if depth == 1:
+            return [c.strip() for c in chunks if c.strip()]
+        if depth == 2:
+            return [[c.strip() for c in chunk if c.strip()]
+                    for chunk in chunks]
+        if depth == 3:
+            return [[[s.strip() for s in chunk if s.strip()] for chunk in chunk_list]
+                    for chunk_list in chunks]
+
+    def _load_chunker(self,
+                      chunker: Union[str, SimpleChunkerProtocol],
+                      chunker_specs: Dict[str, Any]
+                      ) -> SimpleChunkerProtocol:
+        """
+        Parse chunker specifications to create the internal chunker object that
+        handles the compilation of sentences and embeddings into chunks. Can
+        parse either a string specifying a built-in chunker or a custom callable
+        that implements the EmbeddingChunker protocol.
+
+        Args:
+            chunker (Union[str, SimpleChunkerProtocol]): Chunker to be
+                loaded.
+            chunker_specs (Dict[str, Any]): Additional specifications to be
+                passed at initialization to the chunker.
+
+        Returns:
+            EmbeddingChunkerProtocol: Callable that implements the
+                EmbeddingChunkerProtocoll.
+        """
+        map = CHUNK_BACKENDS_MAP["simple"]
+        if isinstance(chunker, str):
+            if chunker not in map:
+                raise ValueError(f"Invalid segmenter '{chunker}'. "
+                                 f"Must be in: {list(map.keys())}.")
+            return map[chunker](**chunker_specs)
+        elif callable(chunker):
+            return chunker(**chunker_specs)
+        else:
+            raise ValueError("Chunker must be a string or callable. Custom "
+                             "callables must implement the "
+                             "SimpleChunkerProtocol.")
