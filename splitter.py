@@ -258,6 +258,73 @@ class TextSplitter:
                                   mathematical_ids=mathematical_ids,
                                   drop_text=drop_text, **kwargs)
 
+    def set_sentencizer(self,
+                        sentence_specs: Optional[dict] = None,
+                        paragraph_specs: Optional[dict] = None):
+        """Set internal sentencizer with new specs.
+
+        Args:
+            sentence_specs (Optional[dict]): Specifications for the sentence
+                segmenter. See SentenceModule for details.
+            paragraph_specs (Optional[dict]): Specifications for the
+                sentencizer's internal paragraph segmenter.
+                See SentenceModule for details.
+        """
+        # initialize sentencizing attributes
+        self.sentencizer = SentenceHandler(sentence_specs, paragraph_specs)
+
+        self.processors["sentences"] = self.sentencizer
+
+
+    def set_paragrapher(self, paragraph_specs: Optional[dict] = None):
+        """
+        Set internal paragrapher with new specs.
+
+        Args:
+            paragraph_specs (Optional[dict]): Specifications for the paragraph
+                segmenter.
+        """
+        # initialize paragraphing attributes
+        self.paragrapher = ParagraphHandler(paragraph_specs)
+
+        self.processors["paragraphs"] = self.paragrapher
+
+
+    def set_chunker(self,
+                    chunking_specs: Optional[dict] = None,
+                    paragraph_specs: Optional[dict] = None,
+                    sentence_specs: Optional[dict] = None):
+        """
+        Set internal chunker with new specs.
+
+        Args:
+            chunking_specs (Optional[dict]): Specifications for the chunk
+                segmenter.
+            paragraph_specs (Optional[dict]): Specifications for the chunk
+                segmenter's internal paragraph segmenter.
+            sentence_specs (Optional[dict]): Specifications for the chunk
+                segmenter's internal sentence segmenter.
+        """
+        # initialize chunking attributes
+        self.chunker = ChunkHandler(chunking_specs, paragraph_specs,
+                                    sentence_specs)
+
+        self.processors["chunks"] = self.chunker
+
+
+    def set_tokenizer(self, token_specs: Optional[dict] = None):
+        """
+        Set internal tokenizer with new specs.
+
+        Args:
+            token_specs (Optional[dict]): Specifications for the tokenizer.
+        """
+        # initialize tokenizer attritubtes
+        self.tokenizer = TokenHandler(token_specs)
+
+        self.processors["tokens"] = self.tokenizer
+
+
     def _process_data(self,
                       data: Union[str, list, pd.Series, pd.DataFrame],
                       mode: str,
