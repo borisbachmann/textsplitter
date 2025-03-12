@@ -1,6 +1,7 @@
 from typing import Protocol, List, Dict
 
-from text_splitter.tokens.backends import SpacyTokenSegmenter, SplitTokenSegmenter
+from .split import SplitTokenSegmenter
+from .spacy import SpacyTokenSegmenter
 
 # Mapping of all segmenters: Put all available segmenters here
 TOKEN_SEGMENTER_MAP = {

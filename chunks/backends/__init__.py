@@ -1,1 +1,2 @@
-from .segmenters import EmbeddingChunkerProtocol, CHUNK_BACKENDS_MAP
+from .segmenters import (EmbeddingChunkerProtocol, SimpleChunkerProtocol,
+                         CHUNK_BACKENDS_MAP)

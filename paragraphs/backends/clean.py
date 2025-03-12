@@ -1,33 +1,12 @@
 import re
-from typing import Optional, Dict, List, Protocol
+from typing import Optional, Dict, List
 
 from tqdm.auto import tqdm
 
-from .constants import BULLETS
-from .patterns import (PARAGRAPH_PATTERN_SIMPLE, ENUM_PATTERN_NO_DATE_DE,
-                       PARAGRAPH_PATTERN)
-
-# Protocol for all paragraph backends (segmenters) to implement
-class ParaSegmenterProtocol(Protocol):
-    """
-    Protocol for custom paragraph segmenters to implement.
-
-    Args:
-        data (List[str]): List of strings to split into sentences.
-
-    Returns:
-        List[List[str]]: List of lists of sentences as strings with one
-            list of sentences for each input string.
-    """
-    def __call__(self,
-                 data: List[str],
-                 *args,
-                 **kwargs
-                 ) -> List[List[str]]:
-        ...
+from .. import constants as para_const
+from ..patterns import PARAGRAPH_PATTERN_SIMPLE, ENUM_PATTERN_NO_DATE_DE
 
 
-# built-in paragraph segmenter classes
 class CleanParaSegmenter:
     """
     Linebreak-based paragraph segmenter that applies rules to re-merge
@@ -41,7 +20,7 @@ class CleanParaSegmenter:
         self.paragraph_pattern = specs.get("paragraph_pattern",
                                            PARAGRAPH_PATTERN_SIMPLE)
         self.enum_pattern = specs.get("enum_pattern", ENUM_PATTERN_NO_DATE_DE)
-        self.bullets = specs.get("bullets", BULLETS)
+        self.bullets = specs.get("bullets", para_const.BULLETS)
 
     def __call__(self,
                  data: List[str],
@@ -115,55 +94,3 @@ class CleanParaSegmenter:
             merged_paragraphs = cleaned_paragraphs
 
         return merged_paragraphs
-
-
-class RegexParaSegmenter:
-    """
-    Regex-based paragraph segmenter that splits text into paragraphs based
-    upon a regex pattern. Uses default pattern if no custom pattern is provided.
-
-    Args:
-        pattern: Optional[str]: Custom regex pattern to split paragraphs. If
-        None, uses default pattern.
-    """
-    def __init__(self, pattern: Optional[str] = None):
-        self.pattern = pattern or PARAGRAPH_PATTERN
-
-    def __call__(self,
-                 data: List[str],
-                 show_progress: bool = False
-                 ) -> List[List[str]]:
-        """
-        Split a list of strings into a list of lists containing paragraphs as
-        strings based on a regex pattern.
-
-        Args:
-            data: List[str]: List of strings to split into paragraphs.
-
-        Returns:
-            List[List[str]]: List of lists of paragraphs as strings with one
-                list of paragraphs for each input string.
-        """
-        if show_progress:
-            return [self._split(text)
-                    for text in tqdm(data, desc="Splitting paragraphs")]
-        else:
-            return [self._split(text) for text in data]
-
-    def _split(self, text: str) -> List[str]:
-        """
-        Split a string into paragraphs based on a regex pattern. Returns a list
-        of paragraphs with removed leading and trailing whitespace.
-
-        Args:
-            text: str: Text to split into paragraphs.
-        """
-        paragraphs = re.split(self.pattern, text)
-        paragraphs = [p.strip() for p in paragraphs]
-        return paragraphs
-
-# Mapping of paragraph segmenter names to segmenter classes
-PARA_SEGMENTER_MAP = {
-    "clean": CleanParaSegmenter,
-    "regex": RegexParaSegmenter
-}

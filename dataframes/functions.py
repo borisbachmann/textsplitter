@@ -2,21 +2,23 @@ from typing import List, Union, Tuple
 
 import pandas as pd
 
-from .columns import (TEXT_COL, id_pattern, span_pattern, n_pattern,
-                      multi_pattern)
+from . import columns
 
 
-def column_list(base_col, text_col):
+def column_list(
+        base_col: str,
+        text_col: str = columns.TEXT_COL
+        ) -> List[str]:
     """Make column list for dataframe based upon base column name."""
     return [
         "file",
         "ID",
         text_col,
-        id_pattern(base_col),
+        columns.id_pattern(base_col),
         base_col,
-        span_pattern(base_col),
-        n_pattern(base_col),
-        "meta" # remove later
+        columns.span_pattern(base_col),
+        columns.n_pattern(base_col),
+        "meta"  # temporary to ship around metadata column, not returned
     ]
 
 
@@ -24,7 +26,7 @@ def cast_to_df(
     input_df: pd.DataFrame,
     segments: List[Union[str, Tuple[Tuple[int, int], str]]],
     base_column: str,
-    text_column: str = TEXT_COL,
+    text_column: str = columns.TEXT_COL,
     include_span: bool = False,
     include_metadata: bool = False,
     drop_text: bool = True,
@@ -48,10 +50,10 @@ def cast_to_df(
     Returns:
         pd.DataFrame: DataFrame with segment data as rows
     """
-    multi_column = multi_pattern(base_column)
-    id_column = id_pattern(base_column)
-    span_column = span_pattern(base_column)
-    n_column = n_pattern(base_column)
+    multi_column = columns.multi_pattern(base_column)
+    id_column = columns.id_pattern(base_column)
+    span_column = columns.span_pattern(base_column)
+    n_column = columns.n_pattern(base_column)
 
     # make a clean copy with reset index to avoid problems with slices
     df = input_df.copy().reset_index(drop=True)
@@ -80,14 +82,14 @@ def cast_to_df(
         df[id_column] = df[id_column].map(lambda x: x + 1)
 
     # keep only desired columns for output dataframe
-    columns = [c for c in column_list(base_column, text_column)
+    df_columns = [c for c in column_list(base_column, text_column)
                if c in df.columns]
 
     # add metadata columns if present
     if include_metadata:
-        columns.extend(meta_df.columns.tolist())
+        df_columns.extend(meta_df.columns.tolist())
 
     if drop_text:
-        columns.remove(text_column)
+        df_columns.remove(text_column)
 
-    return df[columns]
+    return df[df_columns]

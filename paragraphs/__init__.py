@@ -1,1 +1,1 @@
-from .backends import PARA_SEGMENTER_MAP, ParaSegmenterProtocol
+from .handling import ParagraphHandler

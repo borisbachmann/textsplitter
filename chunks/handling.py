@@ -15,11 +15,11 @@ import pandas as pd
 from tqdm.auto import tqdm
 
 from .backends import EmbeddingChunkerProtocol, CHUNK_BACKENDS_MAP
-from text_splitter.chunks.chunker import DummyChunker, ChunkerProtocol, EmbeddingChunker, SimpleChunker
+from .chunker import (DummyChunker, ChunkerProtocol, EmbeddingChunker,
+                      SimpleChunker)
 from .utils import make_indices_from_chunk
-from ..dataframes.columns import TEXT_COL, CHUNK_COL
 from ..utils import add_id
-from text_splitter.dataframes.functions import cast_to_df
+from ..dataframes import columns, cast_to_df
 
 # Enable progress bars for dataframe .map and .apply methods
 tqdm.pandas()
@@ -271,7 +271,7 @@ class ChunkHandler:
 
     def split_df(self,
                  input_df: pd.DataFrame,
-                 text_column: str = TEXT_COL,
+                 text_column: str = columns.TEXT_COL,
                  drop_text: bool = True,
                  mathematical_ids: bool = False,
                  include_span: bool = False,
@@ -306,7 +306,7 @@ class ChunkHandler:
         return cast_to_df(
             input_df=input_df,
             segments=chunks,
-            base_column=CHUNK_COL,
+            base_column=columns.CHUNK_COL,
             text_column=text_column,
             drop_text=drop_text,
             mathematical_ids=mathematical_ids,

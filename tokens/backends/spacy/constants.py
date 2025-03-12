@@ -1,14 +1,15 @@
-# Dicts with spaCy token attributes to extract and corresponding
-# column names
+from ....dataframes import columns
+
 # Documentation of token attributes https://spacy.io/api/token
 
-# these attributes are always extracted
+# Mapping of spaCy token attributes to column names, mandatory
+# these attributes are required to be extracted
 MANDATORY_ATTRS = {
-    "i": "token_id",
-    "text": "token"
+    "i": columns.id_pattern(columns.TOKEN_COL),
+    "text": columns.TOKEN_COL
 }
 
-# Optional attributes can be extracted if specified in function call
+# Mapping of spaCy token attributes to column names, optional
 OPTIONAL_ATTRS = {
     "lemma_": "lemma",
     "is_stop": "is_stop",
@@ -40,11 +41,11 @@ OPTIONAL_ATTRS = {
 }
 
 # new attributes
-SENT_I = "sent_i"
-END_I = "end_i"
+SENT_I = "sent_i"  # sentence index based upon spaCy sentence boundaries
+END_I = "end_i"    # derived based upon start index and token length
 
-# derived mapping
+# mapping of derived attributes to column names
 DERIVED_ATTRS = {
-    "sent_i": "sentence_id",
+    "sent_i": columns.id_pattern(columns.SENT_COL),
     "end_i": "end_idx"
 }

@@ -19,10 +19,10 @@ import pandas as pd
 from tqdm.auto import tqdm
 
 from .dataframes import columns
-from .chunks.handling import ChunkHandler
-from .paragraphs.handling import ParagraphHandler
-from .sentences.handling import SentenceHandler
-from .tokens.handling import TokenHandler, TokenFormats
+from .chunks import ChunkHandler
+from .paragraphs import ParagraphHandler
+from .sentences import SentenceHandler
+from .tokens import TokenHandler, TokenFormats
 
 # register pandas
 tqdm.pandas()

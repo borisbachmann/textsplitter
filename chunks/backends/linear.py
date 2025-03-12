@@ -1,6 +1,5 @@
 from typing import Callable, List, Optional
 
-from numpy._typing import NDArray
 from numpy.typing import NDArray
 
 from ..utils import calculate_similarity

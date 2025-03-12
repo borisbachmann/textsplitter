@@ -21,12 +21,12 @@ from sentence_transformers import SentenceTransformer
 
 from tqdm.auto import tqdm
 
-from.backends import EmbeddingChunkerProtocol, CHUNK_BACKENDS_MAP
-from text_splitter.chunks.embeddings import EmbeddingModel
-from text_splitter.chunks.utils import make_text_from_chunk
-from text_splitter.sentences.handling import SentenceHandler
-from text_splitter.utils import uniform_depth
-from .backends.segmenters import SimpleChunkerProtocol
+from.backends import (EmbeddingChunkerProtocol, SimpleChunkerProtocol,
+                      CHUNK_BACKENDS_MAP)
+from .embeddings import EmbeddingModel
+from .utils import make_text_from_chunk
+from ..sentences.handling import SentenceHandler
+from ..utils import uniform_depth
 
 
 class ChunkerProtocol(Protocol):

@@ -6,9 +6,9 @@ from typing import Protocol, List
 
 from numpy._typing import NDArray
 
-from .graph_chunking import GraphEmbeddingChunker
-from .linear_chunking import LinearEmbeddingChunker
-from .sliding_sents import SlidingSentChunker
+from .graph import GraphEmbeddingChunker
+from .linear import LinearEmbeddingChunker
+from .sliding import SlidingSentChunker
 
 # Mapping of all chunkers: Put all available chunkers here
 CHUNK_BACKENDS_MAP = {

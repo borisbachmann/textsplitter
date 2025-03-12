@@ -2,7 +2,7 @@ from typing import List, Any, Tuple, Union, Optional
 
 import pandas as pd
 
-from .constants import (PLACEHOLDERS)
+from . import constants as pkg_const
 from .dataframes.columns import n_pattern
 
 
@@ -48,7 +48,7 @@ def add_id(elements: List[Any]) -> List[Tuple[int, Any]]:
 def clean_placeholders(
         data: Union[pd.DataFrame, List[str], List[tuple]],
         column: Optional[str] = None,
-        placeholders: List[str] = PLACEHOLDERS)\
+        placeholders: List[str] = pkg_const.PLACEHOLDERS)\
         -> Union[pd.DataFrame, List[str], List[tuple]]:
     """
     Remove placeholders from text_unit data. If data is a pandas dataframe, a
