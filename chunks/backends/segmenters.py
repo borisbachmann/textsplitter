@@ -6,6 +6,7 @@ from typing import Protocol, List
 
 from numpy._typing import NDArray
 
+from .sliding_linear import SlidingEmbeddingChunker
 from .graph import GraphEmbeddingChunker
 from .linear import LinearEmbeddingChunker
 from .sliding import SlidingSentChunker
@@ -13,7 +14,8 @@ from .sliding import SlidingSentChunker
 # Mapping of all chunkers: Put all available chunkers here
 CHUNK_BACKENDS_MAP = {
     "embedding": {"linear": LinearEmbeddingChunker,
-                   "graph": GraphEmbeddingChunker,
+                  "graph": GraphEmbeddingChunker,
+                  "semantic_sliding": SlidingEmbeddingChunker,
                    },
     "simple": {"sliding": SlidingSentChunker}
 }

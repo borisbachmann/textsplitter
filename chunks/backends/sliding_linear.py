@@ -5,7 +5,7 @@ from text_splitter.chunks.utils import calculate_similarity
 from text_splitter.chunks.constants import DEFAULT_MAX_LENGTH, DEFAULT_THRESHOLD, DEFAULT_METRIC
 
 
-def sliding_window_chunking(
+def semantic_sliding_chunking(
         sentences: List[str],
         embeddings: List[NDArray],
         length_metric: Callable,
@@ -76,7 +76,7 @@ def sliding_window_chunking(
 
 
 
-class SlidingWindowEmbeddingChunker:
+class SlidingEmbeddingChunker:
     """
     An embedding-based chunker class that implements a sliding-window approach:
     The window is defined by a maximum length and a similarity threshold,
@@ -107,7 +107,7 @@ class SlidingWindowEmbeddingChunker:
             **kwargs: Additional keyword arguments (e.g. `max_length`, `threshold`,
                 `lookbehind`, `lookahead`) to pass on.
         """
-        return sliding_window_chunking(
+        return semantic_sliding_chunking(
             sentences=sentences,
             embeddings=embeddings,
             length_metric=self.length_metric,
