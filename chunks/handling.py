@@ -64,8 +64,8 @@ class ChunkHandler:
 
         chunker = chunk_specs.get("chunker", None)
         chunker_type = ChunkHandler._determine_chunker_type(chunk_specs)
-        if chunker_type:
-            chunker_map = CHUNKER_REGISTRY[chunker_type]["chunkers"]
+        # if chunker_type:
+        #     chunker_map = CHUNKER_REGISTRY[chunker_type]["chunkers"]
 
         required = (CHUNKER_REGISTRY[chunker_type]["required_params"]
                     if chunker_type else [])
@@ -82,6 +82,9 @@ class ChunkHandler:
         # catch invalid chunkers
         elif isinstance(chunker, str) and chunker_type:
             # verify call to built-in chunkers
+            chunker_map = CHUNKER_REGISTRY.get(
+                chunker_type, CHUNKER_REGISTRY["simple"]
+            )["chunkers"]
             if chunker not in chunker_map:
                 raise ValueError(
                     f"Invalid chunker specified: '{chunker}' is not a "
@@ -89,19 +92,21 @@ class ChunkHandler:
                 )
         elif isinstance(chunker, str) and not chunker_type:
             # if chunker is valid but chunker type could not be
-            # determined, some parameters have to be missing
-            for chunker_type, chunkers in chunker_map.items():
-                if chunker in chunkers:
-                    break
-            missing_params = [
-                param for param in
-                CHUNKER_REGISTRY[chunker_type]["required_params"]
-                if param not in chunk_specs
-                ]
-            raise ValueError(
-                f"Chunker type '{chunker_type}' specified but "
-                f"missing required parameters: '{missing_params}'."
-            )
+            # determined, either chunker type does not require parameters  or
+            # some have to be missing
+            for current_type, config in CHUNKER_REGISTRY.items():
+                if chunker in config["chunkers"]:
+                    missing_params = [
+                        param for param in
+                        config["required_params"]
+                        if param not in chunk_specs
+                        ]
+                    if missing_params:
+                        raise ValueError(
+                            f"Chunker type '{current_type}' specified but "
+                            f"missing required parameters: '{missing_params}'."
+                        )
+                    chunker_type = current_type
         elif chunker is not None and not callable(chunker):
             raise ValueError(
                 "Chunker must be a string or callable implementing the "
@@ -129,8 +134,9 @@ class ChunkHandler:
             Optional[str]: Chunker type if derivable from dict, else None
         """
         for chunker_type, config in CHUNKER_REGISTRY.items():
-            if all(param in specs for param in config["required_params"]):
-                return chunker_type
+            if config["required_params"]:
+                if all(param in specs for param in config["required_params"]):
+                    return chunker_type
 
     @ staticmethod
     def _load_chunker(chunker: Union[str, ChunkerProtocol,

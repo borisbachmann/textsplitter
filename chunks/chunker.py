@@ -635,7 +635,6 @@ class SimpleChunker:
         if isinstance(data, str):
             # wrap to ensure that the segmenter receives a list
             chunks = self._split([data], **kwargs)
-            print(chunks)
             if compile:
                 chunks = self._compile_chunks(chunks, ensure_separators)
             if postprocess:
