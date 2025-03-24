@@ -18,7 +18,7 @@ from .backends import EmbeddingChunkerProtocol, CHUNK_BACKENDS_MAP
 from .chunker import (DummyChunker, ChunkerProtocol, EmbeddingChunker,
                       SimpleChunker)
 from .utils import make_indices_from_chunk
-from ..utils import add_id
+from textsplitter.utils import add_id
 from ..dataframes import columns, cast_to_df
 
 # Enable progress bars for dataframe .map and .apply methods

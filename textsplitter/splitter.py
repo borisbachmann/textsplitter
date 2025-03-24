@@ -18,11 +18,11 @@ import pandas as pd
 
 from tqdm.auto import tqdm
 
-from .dataframes import columns
-from .chunks import ChunkHandler
-from .paragraphs import ParagraphHandler
-from .sentences import SentenceHandler
-from .tokens import TokenHandler, TokenFormats
+from dataframes import columns
+from chunks import ChunkHandler
+from paragraphs import ParagraphHandler
+from sentences import SentenceHandler
+from textsplitter.tokens import TokenHandler, TokenFormats
 
 # register pandas
 tqdm.pandas()
@@ -243,13 +243,13 @@ class TextSplitter:
 
     def tokens(self,
                data: Union[str, list, pd.Series, pd.DataFrame],
-                column: Optional[str] = columns.TEXT_COL,
-                as_tuples: Optional[bool] = False,
-                include_span: Optional[bool] = False,
-                include_metadata: Optional[bool] = False,
-                mathematical_ids: Optional[bool] = False,
-                drop_text: Optional[bool] = True,
-                **kwargs
+               column: Optional[str] = columns.TEXT_COL,
+               as_tuples: Optional[bool] = False,
+               include_span: Optional[bool] = False,
+               include_metadata: Optional[bool] = False,
+               mathematical_ids: Optional[bool] = False,
+               drop_text: Optional[bool] = True,
+               **kwargs
                ) -> Union[List[TokenFormats], List[List[TokenFormats]],
                     pd.Series, pd.DataFrame]:
         return self._process_data(data=data, mode="tokens", column=column,

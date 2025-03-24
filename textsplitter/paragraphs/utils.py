@@ -1,6 +1,6 @@
 from typing import Tuple
 
-from ..utils import find_substring_indices
+from textsplitter.utils import find_substring_indices
 
 def make_indices_from_paragraph(
         paragraph: str,

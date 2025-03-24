@@ -1,8 +1,8 @@
 from typing import Callable, List, Optional
 from numpy.typing import NDArray
 
-from text_splitter.chunks.utils import calculate_similarity
-from text_splitter.chunks.constants import DEFAULT_MAX_LENGTH, DEFAULT_THRESHOLD, DEFAULT_METRIC
+from ..utils import calculate_similarity
+from ..constants import DEFAULT_MAX_LENGTH, DEFAULT_THRESHOLD, DEFAULT_METRIC
 
 
 def semantic_sliding_chunking(

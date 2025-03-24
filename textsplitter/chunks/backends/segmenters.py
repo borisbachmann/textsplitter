@@ -4,7 +4,7 @@ EmbeddingBackendProtocol and adding the new class to the CHUNKER_MAP dictionary.
 """
 from typing import Protocol, List
 
-from numpy._typing import NDArray
+import numpy as np
 
 from .sliding_linear import SlidingEmbeddingChunker
 from .graph import GraphEmbeddingChunker
@@ -34,7 +34,7 @@ class EmbeddingChunkerProtocol(Protocol):
     def __call__(
             self,
             sentences: List[str],
-            embeddings: List[NDArray],
+            embeddings: List[np.ndarray],
             **kwargs
     ) -> List[List[str]]:
         """

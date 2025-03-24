@@ -6,7 +6,7 @@ import math
 from numpy.typing import NDArray
 from sklearn.metrics.pairwise import cosine_similarity
 
-from ..utils import find_substring_indices
+from textsplitter.utils import find_substring_indices
 
 def calculate_similarity(
         embedding_1: NDArray,

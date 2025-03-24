@@ -3,9 +3,9 @@ from typing import Optional, Dict, Any, List, Union, Tuple
 import pandas as pd
 from tqdm.auto import tqdm
 
-from ..dataframes.functions import cast_to_df
-from ..dataframes import columns
-from ..utils import find_substring_indices
+from textsplitter.dataframes.functions import cast_to_df
+from textsplitter.dataframes import columns
+from textsplitter.utils import find_substring_indices
 from .tokenizer import Tokenizer
 
 # As TokenHandler outputs can get quite complex, define possible output

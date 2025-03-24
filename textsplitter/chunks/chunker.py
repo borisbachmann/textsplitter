@@ -26,7 +26,7 @@ from.backends import (EmbeddingChunkerProtocol, SimpleChunkerProtocol,
 from .embeddings import EmbeddingModel
 from .utils import make_text_from_chunk
 from ..sentences.handling import SentenceHandler
-from ..utils import uniform_depth
+from textsplitter.utils import uniform_depth
 
 
 class ChunkerProtocol(Protocol):

@@ -41,8 +41,8 @@ class Tokenizer(object):
                 return []
             if all([isinstance(e, str) for e in data]):
                 tokens = self._segmenter(data,
-                                            show_progress=show_progress,
-                                            **kwargs
-                                            )
+                                         show_progress=show_progress,
+                                         **kwargs
+                                         )
                 return tokens
         raise ValueError("Data must be either string or list of strings only.")

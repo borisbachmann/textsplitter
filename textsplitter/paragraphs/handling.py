@@ -6,7 +6,7 @@ from tqdm.auto import tqdm
 from .utils import make_indices_from_paragraph
 from .paragrapher import Paragrapher
 from ..dataframes import columns
-from ..utils import add_id, clean_placeholders
+from textsplitter.utils import add_id, clean_placeholders
 from ..dataframes.functions import cast_to_df
 
 # Enable progress bars for dataframe .map and .apply methods

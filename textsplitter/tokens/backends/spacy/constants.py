@@ -1,4 +1,4 @@
-from ....dataframes import columns
+from textsplitter.dataframes import columns
 
 # Documentation of token attributes https://spacy.io/api/token
 

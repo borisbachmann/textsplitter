@@ -3,7 +3,8 @@ from typing import List
 import pysbd
 from tqdm.auto import tqdm
 
-from ... import constants as pkg_const
+from textsplitter import constants as pkg_const
+
 
 class PysbdSentSegmenter:
     """

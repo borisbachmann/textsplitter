@@ -5,10 +5,11 @@ from collections import defaultdict
 
 import community as community_louvain
 import networkx as nx
-from numpy._typing import NDArray
+from numpy.typing import NDArray
 
 from ..utils import calculate_similarity, find_overlap, sigmoid
-from ..constants import DEFAULT_K, DEFAULT_RESOLUTION, DEFAULT_RANDOM_STATE, DEFAULT_RES_MULTIPLIER
+from ..constants import (DEFAULT_K, DEFAULT_RESOLUTION, DEFAULT_RANDOM_STATE,
+                         DEFAULT_RES_MULTIPLIER)
 
 
 def graph_chunking(

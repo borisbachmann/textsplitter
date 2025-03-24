@@ -7,7 +7,7 @@ from ..dataframes import columns
 from ..paragraphs.handling import ParagraphHandler
 from .sentencizer import Sentencizer
 from .backends import SentSegmenterProtocol
-from ..utils import add_id, find_substring_indices
+from textsplitter.utils import add_id, find_substring_indices
 from ..dataframes.functions import cast_to_df
 
 # Enable progress bars for dataframe .map and .apply methods
