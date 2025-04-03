@@ -30,6 +30,7 @@ def cast_to_df(
     include_span: bool = False,
     include_metadata: bool = False,
     drop_text: bool = True,
+    keep_orig: list = False,
     mathematical_ids: bool = False
     ) -> pd.DataFrame:
     """
@@ -44,6 +45,7 @@ def cast_to_df(
         text_column (str): Column name with original text data
         include_span (bool): Whether to include span information in output
         drop_text (bool): Whether to drop the original text column
+        keep_orig (list): List of original columns to keep in output
         mathematical_ids (bool): Whether to increment segment IDs by 1 to
             avoid 0
 
@@ -57,6 +59,9 @@ def cast_to_df(
 
     # make a clean copy with reset index to avoid problems with slices
     df = input_df.copy().reset_index(drop=True)
+    if keep_orig:
+        keep_orig = [c for c in keep_orig if c in df.columns]
+        keep_orig = [c for c in keep_orig if c != text_column]
 
     df[multi_column] = pd.Series(segments)
     df = df.explode(multi_column).reset_index(drop=True)
@@ -83,7 +88,10 @@ def cast_to_df(
 
     # keep only desired columns for output dataframe
     df_columns = [c for c in column_list(base_column, text_column)
-               if c in df.columns]
+                  if c in df.columns]
+
+    if keep_orig:
+        df_columns.extend(keep_orig)
 
     # add metadata columns if present
     if include_metadata:

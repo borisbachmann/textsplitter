@@ -1,3 +1,26 @@
+Metadata-Version: 2.4
+Name: textsplitter
+Version: 0.1.0
+Summary: A package for implementing different text splitting techniques.
+Author-email: Boris Bachmann <boris.bachmann@googlemail.com>
+Project-URL: Homepage, https://github.com/sereios/textsplitter
+Requires-Python: ==3.10.16
+Description-Content-Type: text/markdown
+License-File: LICENSE.md
+Requires-Dist: python-louvain~=0.16
+Requires-Dist: networkx~=3.4.2
+Requires-Dist: numpy~=2.2.4
+Requires-Dist: scikit-learn~=1.6.1
+Requires-Dist: sentence-transformers~=3.4.1
+Requires-Dist: tqdm~=4.67.1
+Requires-Dist: pandas~=2.2.3
+Requires-Dist: torch~=2.6.0
+Requires-Dist: transformers~=4.47.1
+Requires-Dist: spacy~=3.8.4
+Requires-Dist: wtpsplit~=2.1.4
+Requires-Dist: pysbd~=0.3.4
+Dynamic: license-file
+
 # textsplitter
 
 textsplitter provides a common interface for different text segmentation algorithms. It developed as a tool to handle 

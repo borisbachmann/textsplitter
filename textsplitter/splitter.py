@@ -18,11 +18,11 @@ import pandas as pd
 
 from tqdm.auto import tqdm
 
-from dataframes import columns
-from chunks import ChunkHandler
-from paragraphs import ParagraphHandler
-from sentences import SentenceHandler
-from textsplitter.tokens import TokenHandler, TokenFormats
+from .dataframes import columns
+from .chunks import ChunkHandler
+from .paragraphs import ParagraphHandler
+from .sentences import SentenceHandler
+from .tokens import TokenHandler, TokenFormats
 
 # register pandas
 tqdm.pandas()
@@ -83,6 +83,7 @@ class TextSplitter:
             include_span: Optional[bool] = False,
             mathematical_ids: Optional[bool] = False,
             drop_text: Optional[bool] = True,
+            keep_orig: Optional[List[str]] = None,
             **kwargs
             ) -> Union[List[str], List[List[str]], pd.Series, pd.DataFrame]:
         """
@@ -103,6 +104,8 @@ class TextSplitter:
                 as_tuples is True or data is a DataFrame.
             drop_text (Optional[bool]): In a dataframe, drop the original text
                 column if True (default True)
+            keep_orig (Optional[List[str]]): List of original dataframe columns
+                to keep (default None).
             **kwargs: Additional keyword arguments for the segmenter.
 
         Returns:
@@ -117,7 +120,8 @@ class TextSplitter:
         return self._process_data(data=data, mode=mode, column=column,
                                   as_tuples=as_tuples, include_span=include_span,
                                   mathematical_ids=mathematical_ids,
-                                  drop_text=drop_text, **kwargs)
+                                  drop_text=drop_text, keep_orig=keep_orig,
+                                  **kwargs)
 
     def sentences(self,
                   data: Union[str, list, pd.Series, pd.DataFrame],
@@ -126,6 +130,7 @@ class TextSplitter:
                   include_span: Optional[bool] = False,
                   mathematical_ids: Optional[bool] = False,
                   drop_text: Optional[bool] = True,
+                  keep_orig: Optional[List[str]] = None,
                   **kwargs
                   ) -> Union[List[str], List[List[str]], pd.Series, pd.DataFrame]:
         """
@@ -145,6 +150,8 @@ class TextSplitter:
                 as_tuples is True or data is a DataFrame.
             drop_text (Optional[bool]): In a dataframe, drop the original text
                 column if True (default True)
+            keep_orig (Optional[List[str]]): List of original dataframe columns
+                to keep (default None).
             **kwargs: Additional keyword arguments for the sentence segmenter.
 
         Returns:
@@ -157,7 +164,8 @@ class TextSplitter:
         return self._process_data(data=data, mode="sentences", column=column,
                                   as_tuples=as_tuples, include_span=include_span,
                                   mathematical_ids=mathematical_ids,
-                                  drop_text=drop_text, **kwargs)
+                                  drop_text=drop_text, keep_orig=keep_orig,
+                                  **kwargs)
 
     def paragraphs(self,
                    data: Union[str, list, pd.Series, pd.DataFrame],
@@ -166,6 +174,7 @@ class TextSplitter:
                    include_span: Optional[bool] = False,
                    mathematical_ids: Optional[bool] = False,
                    drop_text: Optional[bool] = True,
+                   keep_orig: Optional[List[str]] = None,
                    **kwargs
                    ) -> Union[List[str], List[List[str]], pd.Series,
                               pd.DataFrame]:
@@ -186,6 +195,8 @@ class TextSplitter:
                 as_tuples is True or data is a DataFrame.
             drop_text (Optional[bool]): In a dataframe, drop the original text
                 column if True (default True)
+            keep_orig (Optional[List[str]]): List of original dataframe columns
+                to keep (default None).
             **kwargs: Additional keyword arguments for the paragraph segmenter.
 
         Returns:
@@ -199,7 +210,8 @@ class TextSplitter:
         return self._process_data(data=data, mode="paragraphs", column=column,
                                   as_tuples=as_tuples, include_span=include_span,
                                   mathematical_ids=mathematical_ids,
-                                  drop_text=drop_text, **kwargs)
+                                  drop_text=drop_text, keep_orig=keep_orig,
+                                  **kwargs)
 
     def chunks(self,
                data: Union[str, list, pd.Series, pd.DataFrame],
@@ -208,6 +220,7 @@ class TextSplitter:
                include_span: Optional[bool] = False,
                mathematical_ids: Optional[bool] = False,
                drop_text: Optional[bool] = True,
+               keep_orig: Optional[List[str]] = None,
                **kwargs
                ) -> Union[List[str], List[List[str]], pd.Series, pd.DataFrame]:
         """
@@ -227,6 +240,8 @@ class TextSplitter:
                 as_tuples is True or data is a DataFrame.
             drop_text (Optional[bool]): In a dataframe, drop the original text
                 column if True (default True)
+            keep_orig (Optional[List[str]]): List of original dataframe columns
+                to keep (default None).
             **kwargs: Additional keyword arguments for the chunk segmenter.
 
         Returns:
@@ -239,7 +254,8 @@ class TextSplitter:
         return self._process_data(data=data, mode="chunks", column=column,
                                   as_tuples=as_tuples, include_span=include_span,
                                   mathematical_ids=mathematical_ids,
-                                  drop_text=drop_text, **kwargs)
+                                  drop_text=drop_text, keep_orig=keep_orig,
+                                  **kwargs)
 
     def tokens(self,
                data: Union[str, list, pd.Series, pd.DataFrame],
@@ -249,6 +265,7 @@ class TextSplitter:
                include_metadata: Optional[bool] = False,
                mathematical_ids: Optional[bool] = False,
                drop_text: Optional[bool] = True,
+               keep_orig: Optional[List[str]] = None,
                **kwargs
                ) -> Union[List[TokenFormats], List[List[TokenFormats]],
                     pd.Series, pd.DataFrame]:
@@ -256,7 +273,8 @@ class TextSplitter:
                                   as_tuples=as_tuples, include_span=include_span,
                                   include_metadata=include_metadata,
                                   mathematical_ids=mathematical_ids,
-                                  drop_text=drop_text, **kwargs)
+                                  drop_text=drop_text, keep_orig=keep_orig,
+                                  **kwargs)
 
     def set_sentencizer(self,
                         sentence_specs: Optional[dict] = None,
@@ -333,6 +351,7 @@ class TextSplitter:
                       include_span: Optional[bool] = False,
                       mathematical_ids: Optional[bool] = False,
                       drop_text: Optional[bool] = True,
+                      keep_orig: Optional[bool] = List[str],
                       **kwargs
                       ) -> Union[List[str], List[List[str]], pd.Series,
                            pd.DataFrame]:
@@ -354,6 +373,8 @@ class TextSplitter:
                 as_tuples is True or data is a DataFrame.
             drop_text (Optional[bool]): In a dataframe, drop the original text
                 column if True (default True)
+            keep_orig (Optional[List[str]]): List of original dataframe columns
+                to keep (default None).
             **kwargs: Additional keyword arguments for the segmenter.
 
 
@@ -391,6 +412,7 @@ class TextSplitter:
             return processor.split_df(input_df=df, text_column=column,
                                       include_span=include_span,
                                       drop_text=drop_text,
+                                      keep_orig=keep_orig,
                                       mathematical_ids=mathematical_ids,
                                       **kwargs)
 

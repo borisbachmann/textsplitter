@@ -136,6 +136,7 @@ class ParagraphHandler:
         input_df: pd.DataFrame,
         text_column: str = columns.TEXT_COL,
         drop_text: bool = True,
+        keep_orig: list = None,
         mathematical_ids: bool = False,
         include_span: bool = False,
         **kwargs
@@ -151,6 +152,7 @@ class ParagraphHandler:
             input_df: pd.DataFrame: DataFrame containing text data.
             text_column: str: Column containing text data.
             drop_text: bool: Drop the original text column if True.
+            keep_orig: bool: List of original columns to keep
             mathematical_ids: bool: Include mathematical IDs in output if True.
             include_span: bool: Include span information in output if True.
 
@@ -171,6 +173,7 @@ class ParagraphHandler:
             base_column=columns.PARA_COL,
             text_column=text_column,
             drop_text=drop_text,
+            keep_orig=keep_orig,
             mathematical_ids=mathematical_ids,
             include_span=include_span
         )

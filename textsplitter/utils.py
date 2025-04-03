@@ -3,7 +3,7 @@ from typing import List, Any, Tuple, Union, Optional
 import pandas as pd
 
 from . import constants as pkg_const
-from dataframes.columns import n_pattern
+from .dataframes.columns import n_pattern
 
 
 def increment_ids(

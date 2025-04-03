@@ -279,6 +279,7 @@ class ChunkHandler:
                  input_df: pd.DataFrame,
                  text_column: str = columns.TEXT_COL,
                  drop_text: bool = True,
+                 keep_orig: list = None,
                  mathematical_ids: bool = False,
                  include_span: bool = False,
                  **kwargs
@@ -294,6 +295,7 @@ class ChunkHandler:
             input_df (pd.DataFrame): DataFrame containing data data
             text_column (str): Name of the column containing data data
             drop_text (bool): Whether to drop the original data column
+            keep_orig (bool): List of original columns to keep in output
             mathematical_ids (bool): whether to increment chunk IDs by 1 to
                 avoid 0
             include_span (bool): Include start and end indices of chunks
@@ -302,6 +304,7 @@ class ChunkHandler:
         Returns:
             pd.DataFrame: DataFrame with chunks as rows
         """
+
         texts = input_df[text_column].tolist()
         chunks = self.split_list(texts,
                                  as_tuples=True,
@@ -315,6 +318,7 @@ class ChunkHandler:
             base_column=columns.CHUNK_COL,
             text_column=text_column,
             drop_text=drop_text,
+            keep_orig=keep_orig,
             mathematical_ids=mathematical_ids,
             include_span=include_span
         )

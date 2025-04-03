@@ -185,14 +185,15 @@ class SentenceHandler:
                  input_df: pd.DataFrame,
                  text_column: str = columns.TEXT_COL,
                  drop_text: bool = True,
+                 keep_orig: list = None,
                  mathematical_ids: bool = False,
                  include_span: bool = False,
                  **kwargs
                  ) -> pd.DataFrame:
         """
         In a pandas dataframe containing a column with text data, insert three
-        new columns with individual embeddings derived from text data, number of
-        embeddings per data, and embeddings IDs. DataFrame is exploded to one
+        new columns with individual sentences derived from text data, number of
+        sentences per data, and sentence IDs. DataFrame is exploded to one
         row per sentence, keeping sentence together with original text data.
         Optionally, drop the original data column.
 
@@ -200,6 +201,7 @@ class SentenceHandler:
             input_df (pd.DataFrame): DataFrame with original text data
             text_column (str): Column name with text data
             drop_text (bool): Whether to drop the original text column
+            keep_orig (list): List of original columns to keep
             mathematical_ids (bool): Whether to increment data IDs by 1 to
                 avoid 0
             include_span (bool): Whether to include span information in output
@@ -221,6 +223,7 @@ class SentenceHandler:
             base_column=columns.SENT_COL,
             text_column=text_column,
             drop_text=drop_text,
+            keep_orig=keep_orig,
             mathematical_ids=mathematical_ids,
             include_span=include_span,
         )
