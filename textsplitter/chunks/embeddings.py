@@ -20,6 +20,8 @@ class EmbeddingModel:
         self.model_name = model_name
         self.tokenizer = AutoTokenizer.from_pretrained(model_name)
         self.model = AutoModel.from_pretrained(model_name)
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.model.to(self.device)
 
     def encode(self, texts: list, batch_size: int = 32, show_progress_bar=True) -> np.ndarray:
         """
@@ -39,10 +41,20 @@ class EmbeddingModel:
 
     def _process_batch(self, batch: list) -> np.ndarray:
         inputs = self.tokenizer(batch, padding=True, truncation=True,
-                                return_tensors="pt")
+                                return_tensors="pt").to(self.device)
         with torch.no_grad():
             outputs = self.model(**inputs)
-        return outputs.last_hidden_state.mean(dim=1).cpu().numpy()
+
+        token_embeddings = outputs.last_hidden_state
+        attention_mask = inputs['attention_mask'].unsqueeze(-1)
+
+        # Apply attention mask to exclude padding
+        masked_embeddings = token_embeddings * attention_mask
+        summed = masked_embeddings.sum(dim=1)
+        counts = attention_mask.sum(dim=1).clamp(min=1).type(torch.float32)
+        mean_pooled = summed / counts
+
+        return mean_pooled.cpu().numpy()
 
     def __repr__(self):
         return f"EmbeddingModel('{self.model_name}')"
