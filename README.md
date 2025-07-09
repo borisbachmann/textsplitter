@@ -8,7 +8,7 @@ techniques, It is specialized for GERMAN language, but can be adjusted for other
 Currently, textsplitter supports segmentation into the following types: (1) tokens, (2) sentences, (3) paragraphs 
 and (4) chunks. The first three are considered "natural" segmentation types representing the most common ways to 
 think about smaller textual units from the perspective of a human reader. The last type, chunks, are segments 
-constructed out of single consecutive sentences within a larger text.
+constructed out of single consecutive sentences within a larger text by various means (e.g. semantic similarity).
 
 The common interface is designed to be extended on two levels: Individual segmentation algorithms for each of 
 the types, as well as new types of segmentation.
