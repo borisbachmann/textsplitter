@@ -12,7 +12,7 @@ Currently, three types of segmenters are supported:
 - Chunks: handled internally by a ChunkModule instance
 """
 
-from typing import Optional, Union, List
+from typing import Optional, Union, List, Tuple
 
 import pandas as pd
 
@@ -20,9 +20,9 @@ from tqdm.auto import tqdm
 
 from .dataframes import columns
 from .chunks import ChunkHandler
-from .paragraphs import ParagraphHandler
-from .sentences import SentenceHandler
-from .tokens import TokenHandler, TokenFormats
+from .paragraphs import ParagraphHandler, ParaSegmenterProtocol
+from .sentences import SentenceHandler, SentSegmenterProtocol
+from .tokens import TokenHandler, TokenFormats, TokenSegmenterProtocol
 
 # register pandas
 tqdm.pandas()
@@ -48,20 +48,29 @@ class TextSplitter:
     """
     def __init__(
             self,
-            sentence_specs: Optional[dict] = None,
-            paragraph_specs: Optional[dict] = None,
+            sentence_specs: Optional[
+                Union[
+                    Tuple[Union[
+                        SentSegmenterProtocol, None],
+                        Union[ParaSegmenterProtocol, None]
+                    ],
+                    SentSegmenterProtocol
+                ]
+            ] = None,
+            paragraph_specs:  Optional[ParaSegmenterProtocol] = None,
             chunking_specs: Optional[dict] = None,
-            token_specs: Optional[dict] = None,
+            token_specs: Optional[TokenSegmenterProtocol] = None,
             ):
         # initialize paragraphing attributes
         self.paragrapher = ParagraphHandler(paragraph_specs)
 
         # initialize sentencizing attributes
-        self.sentencizer = SentenceHandler(sentence_specs, paragraph_specs)
+        sent_backend, para_backend = self._resolve_sentence_specs(sentence_specs)
+        self.sentencizer = SentenceHandler(sent_backend, para_backend)
 
         # initialize chunking attributes
-        self.chunker = ChunkHandler(chunking_specs, paragraph_specs,
-                                    sentence_specs)
+        # self.chunker = ChunkHandler(chunking_specs, paragraph_specs,
+        #                             sentence_specs)
 
         # initialize tokenizer attritubtes
         self.tokenizer = TokenHandler(token_specs)
@@ -69,7 +78,7 @@ class TextSplitter:
         self.processors = {
             "sentences": self.sentencizer,
             "paragraphs": self.paragrapher,
-            "chunks": self.chunker,
+            #"chunks": self.chunker,
             "tokens": self.tokenizer
         }
 
@@ -122,6 +131,28 @@ class TextSplitter:
                                   mathematical_ids=mathematical_ids,
                                   drop_text=drop_text, keep_orig=keep_orig,
                                   **kwargs)
+
+    def _resolve_sentence_specs(self, sentence_specs):
+        main_para_backend = self.paragrapher.splitter._backend
+        if sentence_specs is not None:
+            if isinstance(sentence_specs, tuple):
+                sent_backend = sentence_specs[0]
+                if sentence_specs[1] is not None:
+                    para_backend = sentence_specs[1]
+                else:
+                    para_backend = main_para_backend
+            elif callable(sentence_specs):
+                sent_backend = sentence_specs
+                para_backend = main_para_backend
+            else:
+                raise ValueError("Sentece specs must either be custom callable "
+                                 "sentence backend or a tuple of sentence and "
+                                 "paragraph backend.")
+        else:
+            sent_backend = None
+            para_backend = main_para_backend
+
+        return sent_backend, para_backend
 
     def sentences(self,
                   data: Union[str, list, pd.Series, pd.DataFrame],
@@ -277,8 +308,17 @@ class TextSplitter:
                                   **kwargs)
 
     def set_sentencizer(self,
-                        sentence_specs: Optional[dict] = None,
-                        paragraph_specs: Optional[dict] = None):
+                        sentence_specs: Optional[
+                            Union[
+                                Tuple[Union[
+                                    SentSegmenterProtocol, None
+                                ],
+                                Union[ParaSegmenterProtocol, None]
+                                ],
+                                SentSegmenterProtocol
+                            ]
+                        ] = None
+                        ):
         """Set internal sentencizer with new specs.
 
         Args:
@@ -289,12 +329,16 @@ class TextSplitter:
                 See SentenceModule for details.
         """
         # initialize sentencizing attributes
-        self.sentencizer = SentenceHandler(sentence_specs, paragraph_specs)
+        sent_backend, para_backend = self._resolve_sentence_specs(sentence_specs)
+        self.sentencizer = SentenceHandler(sent_backend, para_backend)
 
         self.processors["sentences"] = self.sentencizer
 
 
-    def set_paragrapher(self, paragraph_specs: Optional[dict] = None):
+    def set_paragrapher(
+            self,
+            paragraph_specs: Optional[ParaSegmenterProtocol] = None
+    ):
         """
         Set internal paragrapher with new specs.
 
@@ -308,29 +352,32 @@ class TextSplitter:
         self.processors["paragraphs"] = self.paragrapher
 
 
-    def set_chunker(self,
-                    chunking_specs: Optional[dict] = None,
-                    paragraph_specs: Optional[dict] = None,
-                    sentence_specs: Optional[dict] = None):
-        """
-        Set internal chunker with new specs.
+    # def set_chunker(self,
+    #                chunking_specs: Optional[dict] = None,
+    #                paragraph_specs: Optional[dict] = None,
+    #                sentence_specs: Optional[dict] = None):
+    #    """
+    #    Set internal chunker with new specs.
+    #
+    #    Args:
+    #        chunking_specs (Optional[dict]): Specifications for the chunk
+    #            segmenter.
+    #        paragraph_specs (Optional[dict]): Specifications for the chunk
+    #            segmenter's internal paragraph segmenter.
+    #        sentence_specs (Optional[dict]): Specifications for the chunk
+    #            segmenter's internal sentence segmenter.
+    #    """
+    #    # initialize chunking attributes
+    #    self.chunker = ChunkHandler(chunking_specs, paragraph_specs,
+    #                                sentence_specs)
+    #
+    #    self.processors["chunks"] = self.chunker
 
-        Args:
-            chunking_specs (Optional[dict]): Specifications for the chunk
-                segmenter.
-            paragraph_specs (Optional[dict]): Specifications for the chunk
-                segmenter's internal paragraph segmenter.
-            sentence_specs (Optional[dict]): Specifications for the chunk
-                segmenter's internal sentence segmenter.
-        """
-        # initialize chunking attributes
-        self.chunker = ChunkHandler(chunking_specs, paragraph_specs,
-                                    sentence_specs)
 
-        self.processors["chunks"] = self.chunker
-
-
-    def set_tokenizer(self, token_specs: Optional[dict] = None):
+    def set_tokenizer(
+            self,
+            token_specs: Optional[TokenSegmenterProtocol] = None
+    ):
         """
         Set internal tokenizer with new specs.
 

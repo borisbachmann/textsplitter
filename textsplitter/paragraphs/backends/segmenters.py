@@ -1,14 +1,8 @@
 from typing import Protocol, List
-
 from .clean import CleanParaSegmenter
-from .regex import RegexParaSegmenter
 
-
-# Mapping of segmenters: Put all available segmenters here
-PARA_SEGMENTER_MAP = {
-    "clean": CleanParaSegmenter,
-    "regex": RegexParaSegmenter
-}
+# Standard segmenter to use if no segmenter is specified
+DEFAULT_PARA_BACKEND = CleanParaSegmenter
 
 
 # Protocol for all paragraph backends (segmenters) to implement

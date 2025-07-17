@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional
 
 import pysbd
 from tqdm.auto import tqdm
@@ -11,10 +11,12 @@ class PysbdSentSegmenter:
     PySBD-based sentence splitter. Uses the rules-based PySBD sentence splitter
     to split sentences. Initializes with an ISO language code.
     """
-    def __init__(self,
-                 language: str):
+    def __init__(
+            self,
+            language: Optional[str] = pkg_const.DEFAULT_LANGUAGE["ISO 639-1"]
+    ):
         self._seg = pysbd.Segmenter(
-            language=language or pkg_const.DEFAULT_LANGUAGE["ISO 639-1"],
+            language=language,
             clean=False,
             char_span=False
         )

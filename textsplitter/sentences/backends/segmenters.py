@@ -1,16 +1,7 @@
 from typing import Protocol, List
-
 from .pysbd import PysbdSentSegmenter
-from .sat import SatSentSegmenter
-from .spacy import SpacySentSegmenter
 
-# Mapping of sentencizers: Put all available sentencizers here
-SENT_SEGMENTER_MAP = {
-    "pysbd": PysbdSentSegmenter,
-    "sat":   SatSentSegmenter,
-    "spacy": SpacySentSegmenter
-}
-
+DEFAULT_SENT_BACKEND = PysbdSentSegmenter
 
 # Protocol for all Sentencizer backends (segmenters) to implement
 class SentSegmenterProtocol(Protocol):

@@ -1,8 +1,9 @@
-from typing import Dict, Any, Union, List, Tuple
+from typing import Dict, Any, Union, List, Tuple, Optional
 
 import pandas as pd
 from tqdm.auto import tqdm
 
+from .backends import DEFAULT_PARA_BACKEND, ParaSegmenterProtocol
 from .utils import make_indices_from_paragraph
 from .paragrapher import Paragrapher
 from ..dataframes import columns
@@ -14,24 +15,22 @@ tqdm.pandas()
 
 
 class ParagraphHandler:
-    def __init__(self, specs: Dict[str, Any]):
-        if specs is None:
-            specs = {}
-        self.splitter = self._initialize_splitter(
-            specs.get("paragrapher", "clean"))
-        self.drop_placeholders = specs.get("drop_placeholders", [])
+    def __init__(self, paragrapher):
+        self.splitter = self._initialize_splitter(paragrapher)
+        # self.drop_placeholders = specs.get("drop_placeholders", [])
+        self.drop_placeholders = []  ## CHANGE THAT AFTER TESTING
 
-    def _initialize_splitter(self, specs):
-        if (isinstance(specs, str)
-                or callable(specs)
-        ):
-            return Paragrapher(specs)
-        elif isinstance(specs, tuple):
-            return Paragrapher(*specs)
+    def _initialize_splitter(
+            self,
+            paragrapher: Optional[ParaSegmenterProtocol] = None
+    ) -> Paragrapher:
+        if callable(paragrapher):
+            return Paragrapher(paragrapher)
+        elif not paragrapher:
+            return Paragrapher(DEFAULT_PARA_BACKEND())
         else:
-            raise ValueError("Paragrapher must be either a built-in type "
-                             "(specified by string or tuple of string and "
-                             "specs) or a custom callable.")
+            raise ValueError("Paragrapher must be a callable implementing the "
+                             "ParaSegmenterProtocol.")
 
     def split(
             self,

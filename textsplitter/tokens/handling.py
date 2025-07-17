@@ -6,6 +6,7 @@ from tqdm.auto import tqdm
 from textsplitter.dataframes.functions import cast_to_df
 from textsplitter.dataframes import columns
 from textsplitter.utils import find_substring_indices
+from .backends import DEFAULT_TOKEN_BACKEND, TokenSegmenterProtocol
 from .tokenizer import Tokenizer
 
 # As TokenHandler outputs can get quite complex, define possible output
@@ -30,17 +31,20 @@ TokenFormats = Union[
 
 class TokenHandler:
     def __init__(self,
-                 token_specs: Optional[Dict[str, Any]] = None
+                 tokenizer: Optional[TokenSegmenterProtocol] = None
                  ):
-        token_specs = token_specs or {}
-        self.tokenizer = self._initialize_splitter(token_specs)
+        self.splitter = self._initialize_splitter(tokenizer)
 
     def _initialize_splitter(self,
-                             token_specs: Optional[Dict[str, Any]] = None
+                             tokenizer: Optional[TokenSegmenterProtocol] = None
                              ) -> Tokenizer:
-        tokenizer = token_specs.pop("tokenizer", "split")
-
-        return Tokenizer(tokenizer, specs=token_specs)
+        if callable(tokenizer):
+            return Tokenizer(tokenizer)
+        elif not tokenizer:
+            return Tokenizer(DEFAULT_TOKEN_BACKEND())
+        else:
+            raise ValueError("Tokenizer must be a callable implementing the "
+                             "TokenSegmenterProtocol.")
 
     def split(self,
               text: str,
@@ -49,7 +53,7 @@ class TokenHandler:
               include_metadata: bool = False,
               **kwargs
               ) -> Union[List[str], List[tuple]]:
-        tokens = self.tokenizer.split(text, show_progress=False, **kwargs)
+        tokens = self.splitter.split(text, show_progress=False, **kwargs)
         formatted_tokens = format_tokens(tokens=tokens,
                                          text=text,
                                          as_tuples=as_tuples,
@@ -68,9 +72,9 @@ class TokenHandler:
                    **kwargs
                    ) -> List[List[TokenFormats]]:
         show_progress = kwargs.pop("show_progress", False)
-        token_lists = self.tokenizer.split(texts,
-                                           show_progress=show_progress,
-                                           **kwargs)
+        token_lists = self.splitter.split(texts,
+                                          show_progress=show_progress,
+                                          **kwargs)
         if show_progress:
             iterator = tqdm(zip(texts, token_lists),
                             desc="Formatting tokens",

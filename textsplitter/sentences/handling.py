@@ -1,4 +1,4 @@
-from typing import Union, List, Tuple
+from typing import Optional, Union, List, Tuple
 
 import pandas as pd
 from tqdm.auto import tqdm
@@ -6,7 +6,7 @@ from tqdm.auto import tqdm
 from ..dataframes import columns
 from ..paragraphs.handling import ParagraphHandler
 from .sentencizer import Sentencizer
-from .backends import SentSegmenterProtocol
+from .backends import SentSegmenterProtocol, DEFAULT_SENT_BACKEND
 from textsplitter.utils import add_id, find_substring_indices
 from ..dataframes.functions import cast_to_df
 
@@ -29,16 +29,13 @@ class SentenceHandler:
         sent_specs (dict): Specifications for sentence splitting.
         para_specs (dict): Specifications for paragraph splitting.
     """
-    def __init__(self, sent_specs, para_specs):
-        sent_specs = sent_specs or {}
-        self.sentencizer = self._initialize_splitter(
-            sent_specs.get("sentencizer", ("pysbd", "de")))
-
-        self.paragrapher = ParagraphHandler(para_specs)
+    def __init__(self, sentencizer, paragrapher):
+        self.splitter = self._initialize_splitter(sentencizer)
+        self.para_splitter = ParagraphHandler(paragrapher)
 
     def _initialize_splitter(
             self,
-            sentencizer: Union[tuple, SentSegmenterProtocol]
+            sentencizer: Optional[SentSegmenterProtocol] = DEFAULT_SENT_BACKEND
             ) -> Sentencizer:
         """
         Load internal Sentencizer based upon the sentencizer specifications #
@@ -53,14 +50,12 @@ class SentenceHandler:
         Returns:
             Sentencizer: Sentencizer instance
         """
-        if isinstance(sentencizer, tuple):
-            return Sentencizer(*sentencizer)
-        elif callable(sentencizer):
+        if callable(sentencizer):
             return Sentencizer(sentencizer)
+        elif not sentencizer:
+            return Sentencizer(DEFAULT_SENT_BACKEND())
         else:
-            raise ValueError("Sentencizer must be a tuple of strings "
-                             "specifying a built-in type with language/model "
-                             "or a custom callable implementing the "
+            raise ValueError("Sentencizer must be a callable implementing the "
                              "SentSegmenterProtocol.")
 
     def split(self,
@@ -92,13 +87,13 @@ class SentenceHandler:
         drop_placeholders = kwargs.pop("drop_placeholders", [])
 
         # split into paragraphs first
-        paragraphs = self.paragrapher.split(
+        paragraphs = self.para_splitter.split(
             text, drop_placeholders=drop_placeholders)
 
         # process paragraphs individually into sentences
-        sentences = self.sentencizer.split(paragraphs,
-                                           **kwargs
-                                           )
+        sentences = self.splitter.split(paragraphs,
+                                        **kwargs
+                                        )
         # flatten sentence lists for paragraphs into one list for whole text
         sentences = [sentence for paragraph in sentences
                      for sentence in paragraph]
@@ -143,7 +138,7 @@ class SentenceHandler:
         show_progress = kwargs.pop("show_progress", False)
 
         # split into paragraphs first
-        paragraphs = self.paragrapher.split_list(
+        paragraphs = self.para_splitter.split_list(
             texts, drop_placeholders=drop_placeholders)
 
         # process paragraphs individually into sentences
@@ -152,11 +147,11 @@ class SentenceHandler:
         else:
             iterator = paragraphs
 
-        sentences = [self.sentencizer.split(data=para_list,
-                                            as_tuples=as_tuples,
-                                            include_span=include_span,
-                                            **kwargs
-                                            )
+        sentences = [self.splitter.split(data=para_list,
+                                         as_tuples=as_tuples,
+                                         include_span=include_span,
+                                         **kwargs
+                                         )
                      for para_list in iterator
                      ]
 

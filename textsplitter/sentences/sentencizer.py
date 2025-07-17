@@ -1,6 +1,6 @@
 from typing import Union, List, Optional
 
-from .backends import SENT_SEGMENTER_MAP, SentSegmenterProtocol
+from .backends import SentSegmenterProtocol
 
 
 class Sentencizer:
@@ -18,24 +18,9 @@ class Sentencizer:
             segmenters.
     """
     def __init__(self,
-                 segmenter: Union[str, SentSegmenterProtocol],
-                 language_or_model: Optional[str] = None
+                 segmenter: SentSegmenterProtocol
                  ):
-        if isinstance(segmenter, str):
-            if segmenter not in SENT_SEGMENTER_MAP:
-                raise ValueError(f"Invalid segmenter '{segmenter}'. "
-                                 f"Must be in "
-                                 f"{list(SENT_SEGMENTER_MAP.keys())}.")
-            if language_or_model is None:
-                raise ValueError("Language or model must be provided for "
-                                 "built-in segmenters.")
-            self._segmenter = SENT_SEGMENTER_MAP[segmenter](language_or_model)
-        elif callable(segmenter):
-            self._segmenter = segmenter
-        else:
-            raise ValueError("Segmenter must be a string or callable. Custom "
-                             "callables must implement the "
-                             "SentSegmenterProtocol.")
+        self._backend = segmenter
 
     def split(self,
               data: Union[str, List[str]],
@@ -62,7 +47,7 @@ class Sentencizer:
             if "show_progress" in kwargs:
                 kwargs.pop("show_progress")
             # wrap to ensure that the segmenter receives a list
-            sentences = self._segmenter([data], **kwargs)
+            sentences = self._backend([data], **kwargs)
             sentences = self._postprocess(sentences)
             # unwrap to return a single list
             return sentences[0]
@@ -70,7 +55,7 @@ class Sentencizer:
             if not data:
                 return []
             if all([isinstance(e, str) for e in data]):
-                sentences = self._segmenter(data, **kwargs)
+                sentences = self._backend(data, **kwargs)
                 sentences = self._postprocess(sentences)
                 return sentences
         raise ValueError("Data must be either string or list of strings only.")

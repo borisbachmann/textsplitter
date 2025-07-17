@@ -38,11 +38,14 @@ class ChunkHandler:
         self.chunker = self._load_chunker(*parsed_specs)
 
     @ staticmethod
-    def _parse_specs(chunk_specs: Optional[Dict[str, Any]] = None,
-                     para_specs: Optional[Dict[str, Any]] = None,
-                     sent_specs: Optional[Dict[str, Any]] = None
-                     ) -> Tuple[str, Optional[str], Dict[str, Any],
-                                Dict[str, Any]]:
+    def _parse_specs(
+            chunk_specs: Optional[Dict[str, Any]] = None,
+            para_specs: Optional[Dict[str, Any]] = None,
+            sent_specs:
+            Optional[
+                Tuple[Union[callable, None], Union[callable, None]]
+            ] = None
+    ) -> Tuple[str, Optional[str], Dict[str, Any], Dict[str, Any]]:
         """
         Merge all specs and extract required parameters for
         initialization of the chunker.

@@ -282,11 +282,10 @@ class EmbeddingChunker:
         specs = specs or {}
 
         # Load internal SentenceModule
-        sent_specs = {"sentencizer": specs.get("sentencizer", ("pysbd", "de")),
-                      "show_progress": False}
+        sentencizer = specs.get("sentencizer", None)
         para_specs = {"paragrapher": specs.get("paragrapher", "clean"),
                       "drop_placeholders": specs.get("drop_placeholders", [])}
-        self.sentencizer = SentenceHandler(sent_specs, para_specs)
+        self.sentencizer = SentenceHandler(sentencizer, para_specs)
 
         # Load working parameters
         chunker = specs.get("chunker", "linear")

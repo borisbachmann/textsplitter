@@ -1,1 +1,3 @@
-from .segmenters import TOKEN_SEGMENTER_MAP, TokenSegmenterProtocol
+from .segmenters import TokenSegmenterProtocol, DEFAULT_TOKEN_BACKEND
+from .spacy import SpacyTokenSegmenter
+from .split import SplitTokenSegmenter

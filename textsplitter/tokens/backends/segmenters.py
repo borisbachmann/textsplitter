@@ -1,14 +1,8 @@
 from typing import Protocol, List, Dict
 
 from .split import SplitTokenSegmenter
-from .spacy import SpacyTokenSegmenter
 
-# Mapping of all segmenters: Put all available segmenters here
-TOKEN_SEGMENTER_MAP = {
-    "spacy": SpacyTokenSegmenter,
-    "split": SplitTokenSegmenter
-}
-
+DEFAULT_TOKEN_BACKEND = SplitTokenSegmenter
 
 # Protocoll for new segmenters: Implement this protocol for new segmenters
 class TokenSegmenterProtocol(Protocol):

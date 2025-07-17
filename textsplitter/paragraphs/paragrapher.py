@@ -1,6 +1,6 @@
 from typing import Union, Optional, List, Any
 
-from .backends import PARA_SEGMENTER_MAP, ParaSegmenterProtocol
+from .backends import ParaSegmenterProtocol
 
 
 class Paragrapher:
@@ -17,23 +17,10 @@ class Paragrapher:
         language_or_model (Optional[str]): specs for built-in segmenters.
     """
     def __init__(self,
-                 segmenter: Union[str, ParaSegmenterProtocol],
-                 specs: Optional[Any] = None
+                 segmenter: ParaSegmenterProtocol,
+                 # specs: Optional[Any] = None  ## CORRECT THIS LATER
                  ):
-        if isinstance(segmenter, str):
-            if segmenter not in PARA_SEGMENTER_MAP:
-                raise ValueError(f"Invalid segmenter '{segmenter}'. "
-                                 f"Must be in "
-                                 f"{list(PARA_SEGMENTER_MAP.keys())}.")
-            if specs is not None:
-                self._segmenter = PARA_SEGMENTER_MAP[segmenter](specs)
-            else:
-                self._segmenter = PARA_SEGMENTER_MAP[segmenter]()
-        elif callable(segmenter):
-            self._segmenter = segmenter
-        else:
-            raise ValueError("Segmenter must be a string or callable. Custom "
-                             "callables must implement the SegmenterProtocol.")
+        self._backend = segmenter
 
     def split(self,
               data: Union[str, List[str]],
@@ -60,7 +47,7 @@ class Paragrapher:
             if "show_progress" in kwargs:
                 kwargs.pop("show_progress")
             # wrap to ensure that the segmenter receives a list
-            paragraphs = self._segmenter([data], *args, **kwargs)
+            paragraphs = self._backend([data], *args, **kwargs)
             paragraphs = self._postprocess(paragraphs)
             # unwrap to return a single list
             return paragraphs[0]
@@ -68,7 +55,7 @@ class Paragrapher:
             if not data:
                 return []
             if all([isinstance(e, str) for e in data]):
-                paragraphs = self._segmenter(data, *args, **kwargs)
+                paragraphs = self._backend(data, *args, **kwargs)
                 paragraphs = self._postprocess(paragraphs)
                 return paragraphs
         raise ValueError("Data must be either string or list of strings only.")
