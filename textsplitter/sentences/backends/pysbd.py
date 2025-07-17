@@ -14,7 +14,7 @@ class PysbdSentSegmenter:
     def __init__(self,
                  language: str):
         self._seg = pysbd.Segmenter(
-            language=pkg_const.DEFAULT_LANGUAGE["ISO 639-1"],
+            language=language or pkg_const.DEFAULT_LANGUAGE["ISO 639-1"],
             clean=False,
             char_span=False
         )
