@@ -14,12 +14,14 @@ from typing import Dict, Any, Union, Optional, Tuple
 import pandas as pd
 from tqdm.auto import tqdm
 
-from .backends import EmbeddingChunkerProtocol, CHUNK_BACKENDS_MAP
+from .backends import EmbeddingChunkerProtocol, SimpleChunkerProtocol, CHUNK_BACKENDS_MAP
 from .chunker import (DummyChunker, ChunkerProtocol, EmbeddingChunker,
                       SimpleChunker)
 from .utils import make_indices_from_chunk
 from textsplitter.utils import add_id
 from ..dataframes import columns, cast_to_df
+from ..paragraphs import ParaSegmenterProtocol
+from ..sentences import SentSegmenterProtocol
 
 # Enable progress bars for dataframe .map and .apply methods
 tqdm.pandas()
@@ -27,127 +29,33 @@ tqdm.pandas()
 class ChunkHandler:
     def __init__(
             self,
-            chunk_specs: Optional[Dict[str, Any]] = None,
-            para_specs: Optional[Dict[str, Any]] = None,
-            sent_specs: Optional[Dict[str, Any]] = None):
+            chunk_backend: Optional[
+                Union[
+                    SimpleChunkerProtocol,
+                    EmbeddingChunkerProtocol,
+                ]
+            ] = None,
+            sent_backend: Optional[SentSegmenterProtocol] = None,
+            para_backend: Optional[ParaSegmenterProtocol] = None,
+    ):
         """
         Constructor merges spec dictionaries, parses them,
         then loads the appropriate chunker.
         """
-        parsed_specs = self._parse_specs(chunk_specs, para_specs, sent_specs)
-        self.chunker = self._load_chunker(*parsed_specs)
+        self.splitter = self._load_chunker(
+            chunk_backend, sent_backend, para_backend)
 
     @ staticmethod
-    def _parse_specs(
-            chunk_specs: Optional[Dict[str, Any]] = None,
-            para_specs: Optional[Dict[str, Any]] = None,
-            sent_specs:
-            Optional[
-                Tuple[Union[callable, None], Union[callable, None]]
-            ] = None
-    ) -> Tuple[str, Optional[str], Dict[str, Any], Dict[str, Any]]:
-        """
-        Merge all specs and extract required parameters for
-        initialization of the chunker.
-
-        Args:
-            chunk_specs (Optional[Dict[str, Any]]): Chunker specs
-            para_specs (Optional[Dict[str, Any]]): Paragrapher specs
-            sent_specs (Optional[Dict[str, Any]]): Sentencizer specs
-
-        Returns:
-            Tuple[str, Optional[str], Dict[str, Any], Dict[str, Any]]:
-                chunker, chunker_type, required_params, remaining_specs for
-                chunker initialization
-        """
-        # Handle missing specs
-        chunk_specs = chunk_specs or {}
-        para_specs = para_specs or {}
-        sent_specs = sent_specs or {}
-
-        chunker = chunk_specs.get("chunker", None)
-        chunker_type = ChunkHandler._determine_chunker_type(chunk_specs)
-        # if chunker_type:
-        #     chunker_map = CHUNKER_REGISTRY[chunker_type]["chunkers"]
-
-        required = (CHUNKER_REGISTRY[chunker_type]["required_params"]
-                    if chunker_type else [])
-
-        if not chunker and not chunker_type:
-            print("No valid chunker specified. Using dummy chunker.")
-            chunker = "dummy"
-        elif not chunker and chunker_type:
-            chunker = CHUNKER_REGISTRY[chunker_type]["default_backend"]
-            print(
-                f"No chunker specified. Defaulting to '{chunker}' with "
-                f"specified parameters."
-            )
-        # catch invalid chunkers
-        elif isinstance(chunker, str) and chunker_type:
-            # verify call to built-in chunkers
-            chunker_map = CHUNKER_REGISTRY.get(
-                chunker_type, CHUNKER_REGISTRY["simple"]
-            )["chunkers"]
-            if chunker not in chunker_map:
-                raise ValueError(
-                    f"Invalid chunker specified: '{chunker}' is not a "
-                    f"built-in type."
-                )
-        elif isinstance(chunker, str) and not chunker_type:
-            # if chunker is valid but chunker type could not be
-            # determined, either chunker type does not require parameters  or
-            # some have to be missing
-            for current_type, config in CHUNKER_REGISTRY.items():
-                if chunker in config["chunkers"]:
-                    missing_params = [
-                        param for param in
-                        config["required_params"]
-                        if param not in chunk_specs
-                        ]
-                    if missing_params:
-                        raise ValueError(
-                            f"Chunker type '{current_type}' specified but "
-                            f"missing required parameters: '{missing_params}'."
-                        )
-                    chunker_type = current_type
-        elif chunker is not None and not callable(chunker):
-            raise ValueError(
-                "Chunker must be a string or callable implementing the "
-                "ChunkerProtocol."
-            )
-
-        # extract required parameters from dict:
-        required_params = {key: chunk_specs.pop(key) for key in required}
-
-        # merge para_specs and sent_specs into remaining_specs
-        remaining_specs = chunk_specs | para_specs | sent_specs
-
-        return chunker, chunker_type, required_params, remaining_specs
-
-    @staticmethod
-    def _determine_chunker_type(
-            specs: Dict[str, Any]
-            ) -> Optional[str]:
-        """Try to determine the type of chunker to use based on specs.
-
-        Args:
-            specs (Dict[str, Any]): Chunker specs
-
-        Return:
-            Optional[str]: Chunker type if derivable from dict, else None
-        """
-        for chunker_type, config in CHUNKER_REGISTRY.items():
-            if config["required_params"]:
-                if all(param in specs for param in config["required_params"]):
-                    return chunker_type
-
-    @ staticmethod
-    def _load_chunker(chunker: Union[str, ChunkerProtocol,
-                                     EmbeddingChunkerProtocol],
-                      chunker_type: Optional[str],
-                      required_specs: Dict[str, Any],
-                      remaining_specs: Dict[str, Any]
-                      ) -> Union[EmbeddingChunker, DummyChunker, callable]:
+    def _load_chunker(
+            chunk_backend: Optional[
+                Union[
+                    SimpleChunkerProtocol,
+                    EmbeddingChunkerProtocol,
+                ]
+            ] = None,
+            sent_backend: Optional[SentSegmenterProtocol] = None,
+            para_backend: Optional[ParaSegmenterProtocol] = None,
+    ) -> Union[EmbeddingChunker, SimpleChunker, DummyChunker]:
         """
         Based upon specs load the appropriate chunker with the correct
         parameters.
@@ -160,21 +68,19 @@ class ChunkHandler:
                 chunker classes
             remaining_specs (Dict[str, Any]): Remaining parameters for chunker
         """
-        if chunker == "dummy":
+        if chunk_backend is None:
+            print("No chunker specified. Using dummy chunker.")
             return DummyChunker()
-        if isinstance(chunker, str):
-            chunker_class = CHUNKER_REGISTRY[chunker_type]["class"]
-            return chunker_class(*required_specs.values(), remaining_specs)
-        elif callable(chunker):
-            if chunker_type is not None:
-                # if a chunker type could be determined, use the callable as
-                # backend and wrap it in appropriate class
-                chunker_class = CHUNKER_REGISTRY[chunker_type]["class"]
-                return chunker_class(*required_specs.values(), remaining_specs)
-            if chunker_type is None:
-                # if no chunker type could be determined, the use the callable
-                # directly
-                return callable(remaining_specs)
+        else:
+            chunker_type = getattr(chunk_backend, "chunker_type", None)
+            chunker_class = CHUNKER_REGISTRY.get(chunker_type, None)
+            if chunker_class is None:
+                raise ValueError(
+                    f"Unknown chunker type: {chunker_type}. "
+                    "Available chunkers types are: "
+                    f"{list(CHUNKER_REGISTRY.keys())}."
+                )
+            return chunker_class(chunk_backend, sent_backend, para_backend)
 
     def split(self,
               text: str,
@@ -198,22 +104,22 @@ class ChunkHandler:
         """
         if include_span:
             ensure_separators = kwargs.pop("ensure_separators", False)
-            chunks = self.chunker.split(text,
-                                        compile=False,
-                                        postprocess=False,
-                                        **kwargs)
+            chunks = self.splitter.split(text,
+                                         compile=False,
+                                         postprocess=False,
+                                         **kwargs)
             # prune for empty chunks
             chunks = [c for c in chunks if c]
             indices = [make_indices_from_chunk(c, text) for c in chunks]
-            chunks = self.chunker._compile_chunks(
+            chunks = self.splitter._compile_chunks(
                 chunks, ensure_separators=ensure_separators)
-            chunks = self.chunker._postprocess(chunks)
+            chunks = self.splitter._postprocess(chunks)
             chunks = list(zip(indices, chunks))
         else:
-            chunks = self.chunker.split(text,
-                                        compile=True,
-                                        postprocess=True,
-                                        **kwargs)
+            chunks = self.splitter.split(text,
+                                         compile=True,
+                                         postprocess=True,
+                                         **kwargs)
 
         if as_tuples:
             chunks = add_id(chunks)
@@ -248,10 +154,10 @@ class ChunkHandler:
 
         if include_span:
             ensure_separators = kwargs.pop("ensure_separators", False)
-            chunks = self.chunker.split(texts,
-                                        compile=False,
-                                        postprocess=False,
-                                        **kwargs)
+            chunks = self.splitter.split(texts,
+                                         compile=False,
+                                         postprocess=False,
+                                         **kwargs)
             if show_progress:
                 iterator = tqdm(zip(texts, chunks),
                                 desc="Adding span indices",
@@ -262,16 +168,16 @@ class ChunkHandler:
             indices = [[make_indices_from_chunk(c, text) for c in chunk_list]
                        for text, chunk_list in iterator]
 
-            chunks = self.chunker._compile_chunks(
+            chunks = self.splitter._compile_chunks(
                 chunks, ensure_separators=ensure_separators)
-            chunks = self.chunker._postprocess(chunks)
+            chunks = self.splitter._postprocess(chunks)
             chunks = [list(zip(index_list, chunk_list))
                       for index_list, chunk_list in zip(indices, chunks)]
         else:
-            chunks = self.chunker.split(texts,
-                                        compile=True,
-                                        postprocess=True,
-                                        **kwargs)
+            chunks = self.splitter.split(texts,
+                                         compile=True,
+                                         postprocess=True,
+                                         **kwargs)
 
         if as_tuples:
             chunks = [add_id(chunk_list) for chunk_list in chunks]
@@ -328,16 +234,6 @@ class ChunkHandler:
 
 # Registry of all chunkers types: Put all available chunkers here
 CHUNKER_REGISTRY = {
-"embedding": {
-    "required_params": ["model"],
-    "default_backend": "linear",
-    "class": EmbeddingChunker,
-    "chunkers": CHUNK_BACKENDS_MAP["embedding"]
-    },
-"simple": {
-    "required_params": [],
-    "default_backend": "sliding",
-    "class": SimpleChunker,
-    "chunkers": CHUNK_BACKENDS_MAP["simple"]
-    }
+    "embedding": EmbeddingChunker,
+    "simple": SimpleChunker,
 }

@@ -113,7 +113,7 @@ def make_text_from_chunk(
     """Reconstruct text data from a chunk."""
 
     def add_separator(text):
-        if not re.search(r'[.!?]["\']*$', text):
+        if not re.search(r'[.!?:]["\']*$', text):
             return text + "."
         return text
 

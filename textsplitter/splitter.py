@@ -18,6 +18,7 @@ import pandas as pd
 
 from tqdm.auto import tqdm
 
+from .chunks.backends import EmbeddingChunkerProtocol, SimpleChunkerProtocol
 from .dataframes import columns
 from .chunks import ChunkHandler
 from .paragraphs import ParagraphHandler, ParaSegmenterProtocol
@@ -50,15 +51,24 @@ class TextSplitter:
             self,
             sentence_specs: Optional[
                 Union[
-                    Tuple[Union[
-                        SentSegmenterProtocol, None],
+                    Tuple[
+                        Union[SentSegmenterProtocol, None],
                         Union[ParaSegmenterProtocol, None]
                     ],
                     SentSegmenterProtocol
                 ]
             ] = None,
             paragraph_specs:  Optional[ParaSegmenterProtocol] = None,
-            chunking_specs: Optional[dict] = None,
+            chunking_specs: Optional[
+                Union[
+                    Tuple[
+                        Union[EmbeddingChunkerProtocol, SimpleChunkerProtocol],
+                        Union[SentSegmenterProtocol, None],
+                        Union[ParaSegmenterProtocol, None]
+                    ],
+                    Union[EmbeddingChunkerProtocol, SimpleChunkerProtocol],
+                ]
+            ] = None,
             token_specs: Optional[TokenSegmenterProtocol] = None,
             ):
         # initialize paragraphing attributes
@@ -69,8 +79,9 @@ class TextSplitter:
         self.sentencizer = SentenceHandler(sent_backend, para_backend)
 
         # initialize chunking attributes
-        # self.chunker = ChunkHandler(chunking_specs, paragraph_specs,
-        #                             sentence_specs)
+        chunk_backend, sent_backend, para_backend = self._resolve_chunk_specs(chunking_specs)
+        print(chunk_backend, sent_backend, para_backend)  # For debugging
+        self.chunker = ChunkHandler(chunk_backend, sent_backend, para_backend)
 
         # initialize tokenizer attritubtes
         self.tokenizer = TokenHandler(token_specs)
@@ -78,7 +89,7 @@ class TextSplitter:
         self.processors = {
             "sentences": self.sentencizer,
             "paragraphs": self.paragrapher,
-            #"chunks": self.chunker,
+            "chunks": self.chunker,
             "tokens": self.tokenizer
         }
 
@@ -153,6 +164,32 @@ class TextSplitter:
             para_backend = main_para_backend
 
         return sent_backend, para_backend
+
+    def _resolve_chunk_specs(
+            self,
+            chunking_specs
+    ):
+        main_sent_backend = self.sentencizer.splitter._backend
+        main_sent_para_backend = self.sentencizer.para_splitter.splitter._backend
+        if chunking_specs is not None:
+            if isinstance(chunking_specs, tuple):
+                chunk_backend, sent_backend, para_backend = chunking_specs
+                if sent_backend is None:
+                    sent_backend = main_sent_backend
+                if para_backend is None:
+                    para_backend = main_sent_para_backend
+            elif callable(chunking_specs):
+                chunk_backend = chunking_specs
+                sent_backend = main_sent_backend
+                para_backend = main_sent_para_backend
+            else:
+                raise ValueError("Sentece specs must either be custom callable "
+                                 "sentence backend or a tuple of chunk, sentence and "
+                                 "paragraph backend.")
+        else:
+            chunk_backend, sent_backend, para_backend = None, None, None
+
+        return chunk_backend, sent_backend, para_backend
 
     def sentences(self,
                   data: Union[str, list, pd.Series, pd.DataFrame],

@@ -28,6 +28,8 @@ class EmbeddingChunkerProtocol(Protocol):
     method to chunk a list of sentences and corresponding embeddings into a
     list of chunks as lists of sentences within each chunk.
     """
+    chunker_type: str = "embedding"
+
     def __init__(self, **kwargs) -> None:
         ...
 
@@ -51,6 +53,8 @@ class SimpleChunkerProtocol(Protocol):
     method to chunk a list of sentences and corresponding embeddings into a
     list of chunks as lists of sentences within each chunk.
     """
+    chunker_type: str = "simple"
+
     def __init__(self, **kwargs) -> None:
         ...
 
@@ -62,6 +66,6 @@ class SimpleChunkerProtocol(Protocol):
         """
         Take a list of sentences and corresponding embeddings and return a list
         chunks as lists of consecutive sentences within each chunk based upon
-        some embedding-based chunking technique.
+        some chunking technique.
         """
         ...

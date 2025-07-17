@@ -84,6 +84,7 @@ class SlidingEmbeddingChunker:
     is breached. The window is then shifted by a stride and a new chunk is
     created around the new center.
     """
+    chunker_type = "embedding"
 
     def __init__(self,
                  length_metric: Callable,

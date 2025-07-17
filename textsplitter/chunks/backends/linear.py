@@ -107,6 +107,8 @@ class LinearEmbeddingChunker:
             consecutive sentences) or 'cumulative' (i.e. average similarity
             between all sentences in the chunk). Defaults to 'pairwise'.
     """
+    chunker_type = "embedding"
+
     def __init__(self,
                  length_metric: callable,
                  similarity_metric: str = DEFAULT_METRIC

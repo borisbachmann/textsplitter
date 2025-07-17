@@ -201,6 +201,8 @@ class GraphEmbeddingChunker:
             returns its length as a numerical value. If initialized via the
             Chunker class, the Chunker's tokenizer is used.
     """
+    chunker_type = "embedding"
+
     def __init__(self,
                  length_metric: callable = None
                  ):

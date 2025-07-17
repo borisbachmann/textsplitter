@@ -25,6 +25,8 @@ from.backends import (EmbeddingChunkerProtocol, SimpleChunkerProtocol,
                       CHUNK_BACKENDS_MAP)
 from .embeddings import EmbeddingModel
 from .utils import make_text_from_chunk
+from ..paragraphs import ParaSegmenterProtocol
+from ..sentences import SentSegmenterProtocol
 from ..sentences.handling import SentenceHandler
 from textsplitter.utils import uniform_depth
 
@@ -277,6 +279,8 @@ class EmbeddingChunker:
             ):
         self.model = self._load_model(model)
         self.tokenizer = self.model.tokenizer
+
+        self.sent_specs = specs
 
 
         specs = specs or {}
@@ -586,23 +590,13 @@ class SimpleChunker:
 
     def __init__(
             self,
-            specs: Optional[Dict[str, Any]] = None
+            chunk_backend: SimpleChunkerProtocol,
+            sent_backend: SentSegmenterProtocol,
+            para_backend: ParaSegmenterProtocol,
             ):
 
-        specs = specs or {}
-
-        # Load internal SentenceModule
-        sent_specs = {"sentencizer": specs.get("sentencizer", ("pysbd", "de")),
-                      "show_progress": False}
-        para_specs = {"paragrapher": specs.get("paragrapher", "clean"),
-                      "drop_placeholders": specs.get("drop_placeholders", [])}
-        self.sentencizer = SentenceHandler(sent_specs, para_specs)
-
-        # Load working parameters
-        chunker = specs.get("chunker", "sliding")
-        chunker_specs = specs.get("chunker_specs", {})
-
-        self._chunker = self._load_chunker(chunker, chunker_specs)
+        self.sentencizer = SentenceHandler(sent_backend, para_backend)
+        self.chunker = chunk_backend
 
     def split(self,
               data: Union[str, List[str]],
@@ -681,14 +675,14 @@ class SimpleChunker:
             show_progress=show_progress)
 
         if show_progress:
-            chunks = [self._chunker(sentences=s,
-                                    **kwargs)
+            chunks = [self.chunker(sentences=s,
+                                   **kwargs)
                       for s in tqdm((sentences),
                                        desc="Chunking sentences")
                       ]
         else:
-            chunks = [self._chunker(sentences=s,
-                                    **kwargs)
+            chunks = [self.chunker(sentences=s,
+                                   **kwargs)
                       for s in sentences
                       ]
 

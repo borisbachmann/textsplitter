@@ -44,6 +44,8 @@ class SlidingSentChunker:
     covering all consecutive sentence groups of specified length in the input.
     Returned chunks will overlap.
     """
+    chunker_type = "simple"
+
     def __init__(self):
         pass
 
