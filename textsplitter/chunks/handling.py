@@ -73,6 +73,10 @@ class ChunkHandler:
             return DummyChunker()
         else:
             chunker_type = getattr(chunk_backend, "chunker_type", None)
+            if chunker_type == "embedding":
+                print("Embedding chunkers are not supported in this version yet."
+                      " Using dummy chunker instead.")
+                return DummyChunker()
             chunker_class = CHUNKER_REGISTRY.get(chunker_type, None)
             if chunker_class is None:
                 raise ValueError(

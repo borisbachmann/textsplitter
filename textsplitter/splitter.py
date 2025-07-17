@@ -75,12 +75,15 @@ class TextSplitter:
         self.paragrapher = ParagraphHandler(paragraph_specs)
 
         # initialize sentencizing attributes
-        sent_backend, para_backend = self._resolve_sentence_specs(sentence_specs)
+        sent_backend, para_backend = (
+            self._resolve_sentence_specs(sentence_specs)
+        )
         self.sentencizer = SentenceHandler(sent_backend, para_backend)
 
         # initialize chunking attributes
-        chunk_backend, sent_backend, para_backend = self._resolve_chunk_specs(chunking_specs)
-        print(chunk_backend, sent_backend, para_backend)  # For debugging
+        chunk_backend, sent_backend, para_backend = (
+            self._resolve_chunk_specs(chunking_specs)
+        )
         self.chunker = ChunkHandler(chunk_backend, sent_backend, para_backend)
 
         # initialize tokenizer attritubtes
