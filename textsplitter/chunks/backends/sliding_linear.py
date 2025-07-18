@@ -1,6 +1,8 @@
-from typing import Callable, List, Optional
+from typing import Callable, List, Optional, Union
 from numpy.typing import NDArray
+from sentence_transformers import SentenceTransformer
 
+from ..embeddings import EmbeddingModel
 from ..utils import calculate_similarity
 from ..constants import DEFAULT_MAX_LENGTH, DEFAULT_THRESHOLD, DEFAULT_METRIC
 
@@ -115,3 +117,82 @@ class SlidingEmbeddingChunker:
             similarity_metric=self.similarity_metric,
             **kwargs
         )
+
+class SlidingLinearChunkerBackend:
+    """
+    An embedding-based chunker class that implements a sliding-window approach:
+    The window is defined by a maximum length and a similarity threshold,
+    expanding in both directions from a central sentence until either one
+    is breached. The window is then shifted by a stride and a new chunk is
+    created around the new center.
+    """
+    chunker_type = "simple"
+
+    def __init__(self,
+            model: str,
+            length_metric: Callable = None,
+            similarity_metric: str = DEFAULT_METRIC
+    ):
+        self.model = self._load_model(model)
+        self.tokenizer = self.model.tokenizer
+        self.length_metric = length_metric or self._calculate_length
+        self.similarity_metric = similarity_metric
+
+    def __call__(self,
+                 sentences: List[str],
+                 **kwargs
+                 ) -> List[List[str]]:
+        """
+        Call the sliding window chunking technique to create overlapping
+        chunks from the list of sentences and embeddings.
+
+        Args:
+            sentences (List[str]): The text split into consecutive sentences.
+            embeddings (List[NDArray]): The embeddings aligned to sentences.
+            **kwargs: Additional keyword arguments (e.g. `max_length`, `threshold`,
+                `lookbehind`, `lookahead`) to pass on.
+        """
+        embeddings = self.model.encode(sentences, show_progress_bar=False)
+        chunks = semantic_sliding_chunking(
+            sentences=sentences,
+            embeddings=embeddings,
+            length_metric=self.length_metric,
+            similarity_metric=self.similarity_metric,
+            **kwargs
+        )
+        return chunks
+
+    def _load_model(self,
+                    model: Union[str, EmbeddingModel, SentenceTransformer]
+                    ) -> Union[EmbeddingModel, SentenceTransformer]:
+        """
+        Load the internal transformer model used for the generation of
+        embeddings and length calculations. Model can be specified as either a
+        string, a SentenceTransformer instance or an EmbeddingModel instance
+        which wraps any model from Hugging Face into a high-level interface
+        similar to SentenceTransformer. If a string is passed, it must refer
+        to a valid Hugging Face model and will be used to create an
+        EmbeddingModel instance.
+
+        Args:
+            model (Union[str, EmbeddingModel, SentenceTransformer]): Model to
+                be used. If a string, it must specify a valid model from Hugging
+                Face.
+
+        Returns:
+            Union[EmbeddingModel, SentenceTransformer]: Model as an instance
+                that mirrors the SentenceTransformer interface for the purposes
+                of the EmbeddingChunker's methods.
+        """
+        if isinstance(model, str):
+            return EmbeddingModel(model)
+        elif (isinstance(model, EmbeddingModel) or
+              isinstance(model, SentenceTransformer)):
+            return model
+        else:
+            raise ValueError("Model must be a string or an instance of "
+                             "EmbeddingModel or SentenceTransformer.")
+
+    def _calculate_length(self, sentence: str) -> int:
+        tokens = self.tokenizer(sentence)
+        return len(tokens["input_ids"])

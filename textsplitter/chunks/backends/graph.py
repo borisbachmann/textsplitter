@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Callable, Union
 
 import math
 from collections import defaultdict
@@ -6,7 +6,9 @@ from collections import defaultdict
 import community as community_louvain
 import networkx as nx
 from numpy.typing import NDArray
+from sentence_transformers import SentenceTransformer
 
+from ..embeddings import EmbeddingModel
 from ..utils import calculate_similarity, find_overlap, sigmoid
 from ..constants import (DEFAULT_K, DEFAULT_RESOLUTION, DEFAULT_RANDOM_STATE,
                          DEFAULT_RES_MULTIPLIER)
@@ -249,3 +251,110 @@ class GraphEmbeddingChunker:
             return graph_chunking(sentences=sentences,
                                   embeddings=embeddings,
                                   **kwargs)
+
+
+class GraphChunkerBackend:
+    """
+    Chunker class that wraps around the graph chunking technique. Graph chunking
+    splits a list of sentences into chunks by creating a similarity graph
+    between sentences and then applying a graph-based clustering algorithm to
+    group sentences into chunks. Clusters are extracted by finding Louvain
+    communities in the graph.
+
+    Currently accepts a length_metric callable that is not used in the  current
+    implementation but required for compatibility with the Chunker class.
+
+    Args:
+        model (Optional[str]): transformer model as a string or an instance of
+            EmbeddingModel or SentenceTransformer. If a string, it must refer to
+            a valid model from Hugging Face.
+    """
+    chunker_type = "simple"
+
+    def __init__(self,
+                 model: str = None,
+                 ):
+        self.model = self._load_model(model)
+
+    def __call__(self,
+                 sentences : List[str],
+                 **kwargs
+                 ) -> List[List[str]]:
+        """
+        Call the graph chunking technique to create chunks from a list of
+        consecutive sentences and corresponding embeddings.
+
+        Args:
+            sentences (List[str]): List of sentences to be chunked.
+            embeddings (List[NDArray]): List of embeddings for each sentence.
+            **kwargs: Additional keyword arguments to be passed to the graph
+                chunking function:
+                - K (int): Number of preceeding and following sentences to
+                    connect in the graph.
+                - resolution (float): Resolution parameter for the Louvain
+                    community detection algorithm.
+
+        Returns:
+            List[List[str]]: List of chunks as lists of sentences within each
+                chunk.
+        """
+        goal_length = kwargs.pop("goal_length", None)
+        res_multiplier = kwargs.pop("res_multiplier", DEFAULT_RES_MULTIPLIER)
+
+        if goal_length is not None:
+            if isinstance(goal_length, int):
+                embeddings = self.model.encode(
+                    sentences, show_progress_bar=False
+                )
+                resolution = len(sentences) / (goal_length * res_multiplier)
+                chunks = graph_chunking(
+                    sentences=sentences,
+                    embeddings=embeddings,
+                    resolution=resolution,
+                    **kwargs
+                )
+            else:
+                raise ValueError("Invalid goal length value. Please provide an "
+                                 "integer value or None.")
+        else:
+            embeddings = self.model.encode(
+                sentences, show_progress_bar=False
+            )
+            chunks = graph_chunking(
+                sentences=sentences,
+                embeddings=embeddings,
+                **kwargs
+            )
+
+        return chunks
+
+    def _load_model(self,
+                    model: Union[str, EmbeddingModel, SentenceTransformer]
+                    ) -> Union[EmbeddingModel, SentenceTransformer]:
+        """
+        Load the internal transformer model used for the generation of
+        embeddings and length calculations. Model can be specified as either a
+        string, a SentenceTransformer instance or an EmbeddingModel instance
+        which wraps any model from Hugging Face into a high-level interface
+        similar to SentenceTransformer. If a string is passed, it must refer
+        to a valid Hugging Face model and will be used to create an
+        EmbeddingModel instance.
+
+        Args:
+            model (Union[str, EmbeddingModel, SentenceTransformer]): Model to
+                be used. If a string, it must specify a valid model from Hugging
+                Face.
+
+        Returns:
+            Union[EmbeddingModel, SentenceTransformer]: Model as an instance
+                that mirrors the SentenceTransformer interface for the purposes
+                of the EmbeddingChunker's methods.
+        """
+        if isinstance(model, str):
+            return EmbeddingModel(model)
+        elif (isinstance(model, EmbeddingModel) or
+              isinstance(model, SentenceTransformer)):
+            return model
+        else:
+            raise ValueError("Model must be a string or an instance of "
+                             "EmbeddingModel or SentenceTransformer.")

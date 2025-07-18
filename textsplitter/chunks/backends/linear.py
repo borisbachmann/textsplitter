@@ -1,9 +1,15 @@
-from typing import Callable, List, Optional
+from typing import Callable, List, Optional, Union
 
 from numpy.typing import NDArray
+from sentence_transformers import SentenceTransformer
 
+from ..embeddings import EmbeddingModel
 from ..utils import calculate_similarity
-from ..constants import DEFAULT_MAX_LENGTH, DEFAULT_THRESHOLD, DEFAULT_METRIC
+
+# linear-chunking specific constants
+DEFAULT_MAX_LENGTH = 512                # maximal length of produced chunks
+DEFAULT_THRESHOLD = 0.3                 # similarity threshold for chunking
+DEFAULT_METRIC = "pairwise"             # strategy to check threshold
 
 
 def linear_chunking(
@@ -138,3 +144,88 @@ class LinearEmbeddingChunker:
                                length_metric=self.length_metric,
                                similarity_metric=self.similarity_metric,
                                **kwargs)
+
+
+class LinearChunkerBackend:
+    """
+        Chunker class that wraps around the linear chunking technique. Linear
+        chunking splits a list of sentences into chunks bis aggregating consecutive
+        sentences until either a certain maximum length is reached or a similarity
+        threshold is exceeded. Linear chunking allows to create chunks with a
+        precise maximum length based upon a specific metric (e.g. number of
+        tokens, characters etc.). Maximum length and similarity threshold values
+        are specified when calling the chunker.
+
+        Args:
+            model (Optional[str]): transformer model as a string or an instance of
+                EmbeddingModel or SentenceTransformer. If a string, it must refer to
+                a valid model from Hugging Face.
+            length_metric (callable): A callable that takes a sentence as input and
+                returns its length as a numerical value. If initialized via the
+                Chunker class, the Chunker's tokenizer is used.
+            similarity_metric (str): The similarity metric to measure against the
+                threshold. Either 'pairwise' (i.e. similarity between two
+                consecutive sentences) or 'cumulative' (i.e. average similarity
+                between all sentences in the chunk). Defaults to 'pairwise'.
+        """
+    chunker_type = "simple"
+
+    def __init__(
+            self,
+            model: str,
+            length_metric: Callable = None,
+            similarity_metric: str = DEFAULT_METRIC
+    ):
+        self.model = self._load_model(model)
+        self.tokenizer = self.model.tokenizer
+        self.length_metric = length_metric or self._calculate_length
+        self.similarity_metric = similarity_metric
+
+    def __call__(
+            self,
+            sentences: List[str],
+            **kwargs
+    ) -> List[List[str]]:
+        # Create embeddings internally
+        embeddings = self.model.encode(sentences, show_progress_bar=False)
+        chunks = linear_chunking(sentences=sentences,
+                                 embeddings=embeddings,
+                                 length_metric=self.length_metric,
+                                 similarity_metric=self.similarity_metric,
+                                 **kwargs)
+        return chunks
+
+    def _load_model(self,
+                    model: Union[str, EmbeddingModel, SentenceTransformer]
+                    ) -> Union[EmbeddingModel, SentenceTransformer]:
+        """
+        Load the internal transformer model used for the generation of
+        embeddings and length calculations. Model can be specified as either a
+        string, a SentenceTransformer instance or an EmbeddingModel instance
+        which wraps any model from Hugging Face into a high-level interface
+        similar to SentenceTransformer. If a string is passed, it must refer
+        to a valid Hugging Face model and will be used to create an
+        EmbeddingModel instance.
+
+        Args:
+            model (Union[str, EmbeddingModel, SentenceTransformer]): Model to
+                be used. If a string, it must specify a valid model from Hugging
+                Face.
+
+        Returns:
+            Union[EmbeddingModel, SentenceTransformer]: Model as an instance
+                that mirrors the SentenceTransformer interface for the purposes
+                of the EmbeddingChunker's methods.
+        """
+        if isinstance(model, str):
+            return EmbeddingModel(model)
+        elif (isinstance(model, EmbeddingModel) or
+              isinstance(model, SentenceTransformer)):
+            return model
+        else:
+            raise ValueError("Model must be a string or an instance of "
+                             "EmbeddingModel or SentenceTransformer.")
+
+    def _calculate_length(self, sentence: str) -> int:
+        tokens = self.tokenizer(sentence)
+        return len(tokens["input_ids"])
